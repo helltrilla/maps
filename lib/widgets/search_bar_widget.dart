@@ -14,6 +14,7 @@ class FloatingSearchBar extends StatefulWidget {
   final List<Place> nearbyPlaces;
   final ValueChanged<SearchResult> onResultSelected;
   final ValueChanged<String>? onCategorySelected;
+  final ValueChanged<bool>? onOpenStateChanged;
   final VoidCallback onClear;
 
   const FloatingSearchBar({
@@ -23,14 +24,15 @@ class FloatingSearchBar extends StatefulWidget {
     this.nearbyPlaces = const [],
     required this.onResultSelected,
     this.onCategorySelected,
+    this.onOpenStateChanged,
     required this.onClear,
   });
 
   @override
-  State<FloatingSearchBar> createState() => _FloatingSearchBarState();
+  State<FloatingSearchBar> createState() => FloatingSearchBarState();
 }
 
-class _FloatingSearchBarState extends State<FloatingSearchBar> {
+class FloatingSearchBarState extends State<FloatingSearchBar> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
@@ -53,10 +55,40 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
   void initState() {
     super.initState();
     _focusNode.addListener(() {
-      setState(() {
-        _showDropdown = _focusNode.hasFocus;
-      });
+      final isOpen = _focusNode.hasFocus;
+      if (mounted) {
+        setState(() {
+          _showDropdown = isOpen;
+        });
+      }
+      widget.onOpenStateChanged?.call(isOpen);
     });
+  }
+
+  /// Закрыть поиск и скрыть выпадающее меню
+  void closeSearch() {
+    _focusNode.unfocus();
+    if (mounted) {
+      setState(() {
+        _showDropdown = false;
+      });
+    }
+    widget.onOpenStateChanged?.call(false);
+  }
+
+  /// Очистить текст и закрыть меню
+  void clearAndClose() {
+    _controller.clear();
+    _focusNode.unfocus();
+    if (mounted) {
+      setState(() {
+        _results = [];
+        _isLoading = false;
+        _showDropdown = false;
+      });
+    }
+    widget.onClear();
+    widget.onOpenStateChanged?.call(false);
   }
 
   void _onQueryChanged(String query) {
@@ -97,23 +129,13 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
     });
   }
 
-  void _clearSearch() {
-    _controller.clear();
-    setState(() {
-      _results = [];
-      _isLoading = false;
-      _showDropdown = false;
-    });
-    _focusNode.unfocus();
-    widget.onClear();
-  }
-
   void _selectCategory(String cat) {
     _controller.text = cat;
     _focusNode.unfocus();
     setState(() {
       _showDropdown = false;
     });
+    widget.onOpenStateChanged?.call(false);
     if (widget.onCategorySelected != null) {
       widget.onCategorySelected!(cat);
     } else {
@@ -131,113 +153,137 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Поисковая строка с эффектом Glassmorphism
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.surface.withAlpha(210),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: _focusNode.hasFocus
-                        ? AppTheme.accent.withAlpha(180)
-                        : Colors.white.withAlpha(35),
-                    width: 1.2,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 18,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                  decoration: InputDecoration(
-                    hintText: 'Поиск мест и адресов рядом...',
-                    hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                      color: AppTheme.accent,
-                      size: 22,
-                    ),
-                    suffixIcon: _isLoading
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppTheme.primary,
-                                ),
-                              ),
-                            ),
-                          )
-                        : _controller.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.clear_rounded,
-                                  color: Colors.white60,
-                                  size: 20,
-                                ),
-                                onPressed: _clearSearch,
-                              )
-                            : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                      horizontal: 8,
-                    ),
-                  ),
-                  onChanged: _onQueryChanged,
-                ),
-              ),
-            ),
-          ),
-        ),
-
-        // Выпадающее меню: результаты или предложения мест рядом
-        if (_showDropdown)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 330),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface.withAlpha(240),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black54,
-                        blurRadius: 20,
-                        offset: Offset(0, 10),
+    return PopScope(
+      canPop: !_showDropdown,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _showDropdown) {
+          clearAndClose();
+        }
+      },
+      child: TapRegion(
+        groupId: 'search_bar_group',
+        onTapOutside: (_) {
+          if (_showDropdown) {
+            closeSearch();
+          }
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Поисковая строка с эффектом Glassmorphism
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface.withAlpha(220),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _showDropdown
+                            ? AppTheme.accent.withAlpha(180)
+                            : Colors.white.withAlpha(35),
+                        width: 1.2,
                       ),
-                    ],
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 18,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Поиск мест и адресов рядом...',
+                        hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppTheme.accent,
+                          size: 22,
+                        ),
+                        suffixIcon: _isLoading
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppTheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : (_showDropdown || _controller.text.isNotEmpty)
+                                ? IconButton(
+                                    icon: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withAlpha(20),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    tooltip: 'Закрыть поиск',
+                                    onPressed: clearAndClose,
+                                  )
+                                : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 8,
+                        ),
+                      ),
+                      onChanged: _onQueryChanged,
+                    ),
                   ),
-                  child: _controller.text.trim().isEmpty
-                      ? _buildNearbySuggestions()
-                      : _buildSearchResults(),
                 ),
               ),
             ),
-          ),
-      ],
+
+            // Выпадающее меню: результаты или предложения мест рядом
+            if (_showDropdown)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 330),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface.withAlpha(245),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white12),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black54,
+                            blurRadius: 20,
+                            offset: Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: _controller.text.trim().isEmpty
+                          ? _buildNearbySuggestions()
+                          : _buildSearchResults(),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -246,14 +292,14 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
     final nearbyPlaces = widget.nearbyPlaces;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Заголовок
+          // Заголовок с кнопкой закрытия
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             child: Row(
               children: [
                 const Icon(Icons.near_me_rounded, color: AppTheme.accent, size: 16),
@@ -280,6 +326,19 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: clearAndClose,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 16, color: Colors.white70),
                   ),
                 ),
               ],
@@ -437,6 +496,7 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
                     _showDropdown = false;
                     _controller.text = place.name;
                   });
+                  widget.onOpenStateChanged?.call(false);
                   final result = SearchResult(
                     title: place.name,
                     subtitle: place.address ?? 'Рядом с вами',
@@ -449,6 +509,33 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
               );
             }),
           ],
+
+          // Кнопка свернуть поиск внизу
+          const SizedBox(height: 6),
+          Center(
+            child: InkWell(
+              onTap: clearAndClose,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.keyboard_arrow_up_rounded, size: 16, color: Colors.white60),
+                    SizedBox(width: 4),
+                    Text(
+                      'Свернуть поиск',
+                      style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -468,104 +555,154 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
           ),
         );
       }
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Center(
-          child: Text(
-            'Ничего не найдено рядом с вами',
-            style: TextStyle(color: Colors.white54, fontSize: 13),
-          ),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ничего не найдено рядом с вами',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: clearAndClose,
+              icon: const Icon(Icons.close_rounded, size: 16, color: AppTheme.accent),
+              label: const Text('Закрыть', style: TextStyle(color: AppTheme.accent, fontSize: 12)),
+            ),
+          ],
         ),
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: _results.length,
-      separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
-      itemBuilder: (context, index) {
-        final item = _results[index];
-        return ListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceSubtle,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Icon(item.icon, color: AppTheme.accent, size: 20),
-          ),
-          title: Text(
-            item.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Row(
-              children: [
-                if (item.distanceFormatted != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent.withAlpha(35),
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(
-                        color: AppTheme.accent.withAlpha(80),
-                        width: 0.6,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.near_me_rounded,
-                          size: 9,
-                          color: AppTheme.accent,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          item.distanceFormatted!,
-                          style: const TextStyle(
-                            color: AppTheme.accent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Шапка результатов с кнопкой Закрыть
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: Row(
+            children: [
+              Text(
+                'Найдено: ${_results.length}',
+                style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: clearAndClose,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    item.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.close_rounded, size: 14, color: Colors.white70),
+                      SizedBox(width: 4),
+                      Text('Закрыть', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          onTap: () {
-            _focusNode.unfocus();
-            setState(() {
-              _showDropdown = false;
-              _controller.text = item.title;
-            });
-            widget.onResultSelected(item);
-          },
-        );
-      },
+        ),
+        const Divider(color: Colors.white10, height: 1),
+        Flexible(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            itemCount: _results.length,
+            separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
+            itemBuilder: (context, index) {
+              final item = _results[index];
+              return ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceSubtle,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Icon(item.icon, color: AppTheme.accent, size: 20),
+                ),
+                title: Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      if (item.distanceFormatted != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accent.withAlpha(35),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: AppTheme.accent.withAlpha(80),
+                              width: 0.6,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.near_me_rounded,
+                                size: 9,
+                                color: AppTheme.accent,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                item.distanceFormatted!,
+                                style: const TextStyle(
+                                  color: AppTheme.accent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          item.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                onTap: () {
+                  _focusNode.unfocus();
+                  setState(() {
+                    _showDropdown = false;
+                    _controller.text = item.title;
+                  });
+                  widget.onOpenStateChanged?.call(false);
+                  widget.onResultSelected(item);
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

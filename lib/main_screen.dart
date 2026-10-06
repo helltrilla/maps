@@ -48,6 +48,10 @@ class _MainScreenState extends State<MainScreen> {
   List<SavedMarker> _savedMarkers = [];
   List<Place> _nearbyPlaces = [];
 
+  // Поиск
+  final GlobalKey<FloatingSearchBarState> _searchBarKey = GlobalKey<FloatingSearchBarState>();
+  bool _isSearchOpen = false;
+
   // Маршрут
   RouteInfo? _currentRoute;
   bool _isBuildingRoute = false;
@@ -132,6 +136,13 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _handleMapTap(LatLng position) async {
     FocusScope.of(context).unfocus();
+    if (_isSearchOpen) {
+      _searchBarKey.currentState?.closeSearch();
+      setState(() {
+        _isSearchOpen = false;
+      });
+      return;
+    }
     if (_isPickingPointOnMap) {
       _mapController.move(position, _mapController.camera.zoom);
       return;
@@ -669,6 +680,24 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
 
+          // Затемняющий оверлей для мгновенного закрытия поиска тапом в любое место
+          if (_isSearchOpen && !_isPickingPointOnMap)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _searchBarKey.currentState?.closeSearch();
+                  setState(() {
+                    _isSearchOpen = false;
+                  });
+                  FocusScope.of(context).unfocus();
+                },
+                child: Container(
+                  color: Colors.black26,
+                ),
+              ),
+            ),
+
           // Верхняя панель: Поиск ИЛИ Плашка режима выбора точки
           Positioned(
             top: 0,
@@ -812,9 +841,17 @@ class _MainScreenState extends State<MainScreen> {
                       children: [
                         const SizedBox(height: 8),
                         FloatingSearchBar(
+                          key: _searchBarKey,
                           userLocation: _userLocation,
                           mapCenter: _safeMapCenter,
                           nearbyPlaces: _nearbyPlaces,
+                          onOpenStateChanged: (isOpen) {
+                            if (_isSearchOpen != isOpen) {
+                              setState(() {
+                                _isSearchOpen = isOpen;
+                              });
+                            }
+                          },
                           onCategorySelected: (cat) => _loadNearbyPlaces(cat),
                           onResultSelected: (result) {
                             _mapController.move(result.position, 16);
