@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 enum MapTileType {
-  esriDarkGray,
-  satellite,
   openStreetMap,
+  satellite,
+  cyclosm,
   openTopoMap,
+  esriDarkGray,
 }
 
 class MapTileStyle {
@@ -26,33 +27,35 @@ class MapTileStyle {
     required this.icon,
   });
 
+  int get maxNativeZoom => maxZoom;
+
   static const List<MapTileStyle> availableStyles = [
     MapTileStyle(
-      type: MapTileType.esriDarkGray,
-      title: 'Тёмный Неон (Dark Gray)',
-      description: 'Премиальный глубокий ночной стиль',
-      urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      type: MapTileType.openStreetMap,
+      title: 'Классика (OSM)',
+      description: 'Детальные улицы, дома, номера и пешеходные зоны',
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       subdomains: [],
-      maxZoom: 16,
-      icon: Icons.dark_mode_rounded,
+      maxZoom: 19,
+      icon: Icons.map_rounded,
     ),
     MapTileStyle(
       type: MapTileType.satellite,
       title: 'Спутник (Esri World)',
-      description: 'Высокодетализированные спутниковые снимки',
+      description: 'Высокодетализированные спутниковые снимки местности',
       urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       subdomains: [],
       maxZoom: 19,
       icon: Icons.satellite_alt_rounded,
     ),
     MapTileStyle(
-      type: MapTileType.openStreetMap,
-      title: 'Классика (OSM)',
-      description: 'Базовая подробная открытая карта улиц',
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      subdomains: [],
-      maxZoom: 19,
-      icon: Icons.map_rounded,
+      type: MapTileType.cyclosm,
+      title: 'Городская / Навигация (CyclOSM)',
+      description: 'Улицы, велодорожки, парки и четкие ориентиры',
+      urlTemplate: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+      subdomains: ['a', 'b', 'c'],
+      maxZoom: 18,
+      icon: Icons.directions_bike_rounded,
     ),
     MapTileStyle(
       type: MapTileType.openTopoMap,
@@ -62,6 +65,15 @@ class MapTileStyle {
       subdomains: ['a', 'b', 'c'],
       maxZoom: 17,
       icon: Icons.terrain_rounded,
+    ),
+    MapTileStyle(
+      type: MapTileType.esriDarkGray,
+      title: 'Ночная (Dark Gray)',
+      description: 'Контрастный темный режим для ночи',
+      urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      subdomains: [],
+      maxZoom: 16,
+      icon: Icons.dark_mode_rounded,
     ),
   ];
 }

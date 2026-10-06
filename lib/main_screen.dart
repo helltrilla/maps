@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:http_cache_file_store/http_cache_file_store.dart';
@@ -52,6 +54,12 @@ class _MainScreenState extends State<MainScreen> {
   final GlobalKey<FloatingSearchBarState> _searchBarKey = GlobalKey<FloatingSearchBarState>();
   bool _isSearchOpen = false;
 
+  // Стрим геолокации реального времени (в стиле Яндекс Карт)
+  StreamSubscription<Position>? _positionStreamSub;
+  double _userHeading = 0.0;
+  double _userSpeed = 0.0;
+  bool _isFollowingUser = false;
+
   // Маршрут
   RouteInfo? _currentRoute;
   bool _isBuildingRoute = false;
@@ -67,6 +75,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _cacheStoreFuture = _getCacheStore();
     _loadInitialData();
+    _startRealtimeLocationTracking();
   }
 
   static Future<CacheStore> _getCacheStore() async {
@@ -121,6 +130,46 @@ class _MainScreenState extends State<MainScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  void _startRealtimeLocationTracking() {
+    _positionStreamSub?.cancel();
+    _positionStreamSub = LocationService.getPositionStream(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 1,
+    ).listen(
+      (Position position) {
+        if (!mounted) return;
+        final newLocation = LatLng(position.latitude, position.longitude);
+        setState(() {
+          _userLocation = newLocation;
+          if (position.heading > 0) {
+            _userHeading = position.heading;
+          }
+          _userSpeed = position.speed;
+        });
+
+        // В режиме автоследования (Яндекс Карты) плавно ведем камеру за пользователем
+        if (_isFollowingUser) {
+          _mapController.move(newLocation, _mapController.camera.zoom);
+        }
+      },
+      onError: (e) {
+        debugPrint('Ошибка стрима геолокации: $e');
+      },
+    );
+  }
+
+  void _onMyLocationPressed() async {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isFollowingUser = true;
+    });
+    if (_userLocation != null) {
+      _mapController.move(_userLocation!, 16);
+    } else {
+      await _updateUserLocation(centerMap: true);
     }
   }
 
@@ -509,7 +558,7 @@ class _MainScreenState extends State<MainScreen> {
   void _zoom(bool zoomIn) {
     final double currentZoom = _mapController.camera.zoom;
     final LatLng currentCenter = _mapController.camera.center;
-    final double newZoom = zoomIn ? currentZoom + 1 : currentZoom - 1;
+    final double newZoom = (zoomIn ? currentZoom + 1 : currentZoom - 1).clamp(3.0, 21.0);
     _mapController.move(currentCenter, newZoom);
   }
 
@@ -524,20 +573,30 @@ class _MainScreenState extends State<MainScreen> {
         ),
         backgroundColor: AppTheme.background,
         initialCenter: const LatLng(54.7104, 20.4522),
-        initialZoom: 13.0,
-        minZoom: 2.5,
-        maxZoom: 19,
+        initialZoom: 14.5,
+        minZoom: 3.0,
+        maxZoom: 21.0,
         onTap: (tapPosition, point) => _handleMapTap(point),
+        onPositionChanged: (camera, hasGesture) {
+          if (hasGesture && _isFollowingUser) {
+            setState(() {
+              _isFollowingUser = false;
+            });
+          }
+        },
         cameraConstraint: CameraConstraint.containLatitude(),
       ),
       children: [
-        // 1. Тайлы карты (с кешем)
+        // 1. Тайлы карты (с кешем и поддержкой глубокого зума)
         TileLayer(
           key: ValueKey(_selectedTileStyle.type),
           urlTemplate: _selectedTileStyle.urlTemplate,
           subdomains: _selectedTileStyle.subdomains,
-          keepBuffer: 4,
-          maxZoom: _selectedTileStyle.maxZoom.toDouble(),
+          keepBuffer: 6,
+          panBuffer: 2,
+          maxNativeZoom: _selectedTileStyle.maxNativeZoom,
+          maxZoom: 22.0,
+          tileDisplay: const TileDisplay.fadeIn(),
           userAgentPackageName: 'com.helltrilla.maps',
           tileProvider: CachedTileProvider(
             store: cacheStore,
@@ -568,9 +627,13 @@ class _MainScreenState extends State<MainScreen> {
         // 3. Маркеры
         MarkerLayer(
           markers: [
-            // Текущее местоположение юзера
+            // Текущее местоположение юзера (в реальном времени)
             if (_userLocation != null)
-              MapMarkerWidgets.buildUserLocationMarker(_userLocation!),
+              MapMarkerWidgets.buildUserLocationMarker(
+                _userLocation!,
+                heading: _userHeading,
+                speed: _userSpeed,
+              ),
 
             // Пользовательские сохраненные точки
             ..._savedMarkers.map(
@@ -599,6 +662,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    _positionStreamSub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -943,15 +1007,15 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Мое местоположение
+                // Мое местоположение (индикатор автоследования Яндекс Карт)
                 FloatingActionButton(
                   heroTag: 'my_location_fab',
-                  onPressed: () => _updateUserLocation(centerMap: true),
-                  tooltip: 'Мое местоположение',
-                  backgroundColor: AppTheme.primary,
-                  child: const Icon(
-                    Icons.my_location_rounded,
-                    color: Colors.white,
+                  onPressed: _onMyLocationPressed,
+                  tooltip: _isFollowingUser ? 'Слежение активно' : 'Мое местоположение',
+                  backgroundColor: _isFollowingUser ? AppTheme.accent : AppTheme.surface,
+                  child: Icon(
+                    _isFollowingUser ? Icons.near_me_rounded : Icons.my_location_rounded,
+                    color: _isFollowingUser ? Colors.black : AppTheme.accent,
                   ),
                 ),
 

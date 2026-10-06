@@ -83,11 +83,14 @@ class LocationService {
     return null;
   }
 
-  static Stream<Position> getPositionStream() {
+  static Stream<Position> getPositionStream({
+    LocationAccuracy accuracy = LocationAccuracy.high,
+    int distanceFilter = 1,
+  }) {
     return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
+      locationSettings: LocationSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
       ),
     );
   }
