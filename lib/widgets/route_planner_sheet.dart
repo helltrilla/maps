@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import '../app_theme.dart';
 import '../models/place.dart';
@@ -34,6 +35,11 @@ class RoutePlannerSheet extends StatefulWidget {
     LatLng endPos,
     String endName,
   ) onBuildRoute;
+  final void Function(
+    bool isStart,
+    RoutePointItem currentStart,
+    RoutePointItem currentEnd,
+  )? onPickOnMap;
 
   const RoutePlannerSheet({
     super.key,
@@ -43,6 +49,7 @@ class RoutePlannerSheet extends StatefulWidget {
     required this.savedMarkers,
     required this.nearbyPlaces,
     required this.onBuildRoute,
+    this.onPickOnMap,
   });
 
   @override
@@ -123,6 +130,7 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
   }
 
   void _swapPoints() {
+    HapticFeedback.lightImpact();
     setState(() {
       final temp = _startPoint;
       _startPoint = _endPoint;
@@ -209,8 +217,47 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
               ),
             ),
             const SizedBox(height: 14),
+
+            // Кнопка: Указать точку на карте
+            if (widget.onPickOnMap != null) ...[
+              Material(
+                color: AppTheme.accent.withAlpha(25),
+                borderRadius: BorderRadius.circular(14),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent.withAlpha(40),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.touch_app_rounded, color: AppTheme.accent, size: 22),
+                  ),
+                  title: const Text(
+                    'Указать точку на карте',
+                    style: TextStyle(
+                      color: AppTheme.accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Перемещайте карту и наведите прицел',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.accent),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context);
+                    widget.onPickOnMap!(isStart, _startPoint, _endPoint);
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 350),
+              constraints: const BoxConstraints(maxHeight: 320),
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: allPoints.length,
@@ -377,7 +424,16 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 48), // место под кнопку реверса
+                            if (widget.onPickOnMap != null)
+                              IconButton(
+                                icon: const Icon(Icons.pin_drop_outlined, size: 18, color: AppTheme.accent),
+                                tooltip: 'Указать точку на карте',
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  widget.onPickOnMap!(true, _startPoint, _endPoint);
+                                },
+                              ),
+                            const SizedBox(width: 36), // место под кнопку реверса
                           ],
                         ),
                       ),
@@ -429,7 +485,16 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 48),
+                            if (widget.onPickOnMap != null)
+                              IconButton(
+                                icon: const Icon(Icons.pin_drop_outlined, size: 18, color: Colors.redAccent),
+                                tooltip: 'Указать точку на карте',
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  widget.onPickOnMap!(false, _startPoint, _endPoint);
+                                },
+                              ),
+                            const SizedBox(width: 36),
                           ],
                         ),
                       ),
@@ -474,6 +539,20 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                if (widget.onPickOnMap != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.touch_app_rounded, size: 16, color: AppTheme.accent),
+                      label: const Text('Указать на карте', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                      backgroundColor: AppTheme.accent.withAlpha(30),
+                      side: const BorderSide(color: AppTheme.accent, width: 0.8),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onPickOnMap!(false, _startPoint, _endPoint);
+                      },
+                    ),
+                  ),
                 if (widget.userLocation != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),

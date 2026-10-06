@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../app_theme.dart';
@@ -101,21 +102,26 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppTheme.surface.withAlpha(240),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white12, width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black45,
-                blurRadius: 16,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: TextField(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surface.withAlpha(200),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withAlpha(35), width: 1.2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: TextField(
             controller: _controller,
             focusNode: _focusNode,
             style: const TextStyle(color: Colors.white, fontSize: 15),
@@ -160,6 +166,9 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
             onChanged: _onQueryChanged,
           ),
         ),
+      ),
+    ),
+  ),
         if (_showDropdown && _results.isNotEmpty)
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

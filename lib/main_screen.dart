@@ -52,6 +52,12 @@ class _MainScreenState extends State<MainScreen> {
   RouteInfo? _currentRoute;
   bool _isBuildingRoute = false;
 
+  // Режим выбора точки на карте для маршрута
+  bool _isPickingPointOnMap = false;
+  bool _pickingForStart = false;
+  RoutePointItem? _savedPlannerStart;
+  RoutePointItem? _savedPlannerEnd;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +83,7 @@ class _MainScreenState extends State<MainScreen> {
 
     // Фоновое определение местоположения
     _updateUserLocation(centerMap: false);
+
   }
 
   Future<void> _updateUserLocation({bool centerMap = false}) async {
@@ -102,6 +109,11 @@ class _MainScreenState extends State<MainScreen> {
   // --- Управление маркерами ---
 
   Future<void> _handleMapTap(LatLng position) async {
+    if (_isPickingPointOnMap) {
+      _mapController.move(position, _mapController.camera.zoom);
+      return;
+    }
+
     final newMarker = SavedMarker(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: 'Точка #${_savedMarkers.length + 1}',
@@ -416,6 +428,15 @@ class _MainScreenState extends State<MainScreen> {
         initialDestination: initialDestination,
         savedMarkers: _savedMarkers,
         nearbyPlaces: _nearbyPlaces,
+        onPickOnMap: (isStart, currentStart, currentEnd) {
+          setState(() {
+            _isPickingPointOnMap = true;
+            _pickingForStart = isStart;
+            _savedPlannerStart = currentStart;
+            _savedPlannerEnd = currentEnd;
+          });
+          HapticFeedback.mediumImpact();
+        },
         onBuildRoute: (startPos, startName, endPos, endName) {
           _buildRouteBetween(
             start: startPos,
@@ -468,8 +489,8 @@ class _MainScreenState extends State<MainScreen> {
           flags: InteractiveFlag.all,
         ),
         backgroundColor: AppTheme.background,
-        initialCenter: const LatLng(54.715424, 20.509207),
-        initialZoom: 12.0,
+        initialCenter: const LatLng(54.7104, 20.4522),
+        initialZoom: 13.0,
         minZoom: 2.5,
         maxZoom: 19,
         onTap: (tapPosition, point) => _handleMapTap(point),
@@ -483,7 +504,7 @@ class _MainScreenState extends State<MainScreen> {
           subdomains: _selectedTileStyle.subdomains,
           keepBuffer: 4,
           maxZoom: _selectedTileStyle.maxZoom.toDouble(),
-          userAgentPackageName: 'com.example.maps',
+          userAgentPackageName: 'com.helltrilla.maps',
           tileProvider: CachedTileProvider(
             store: cacheStore,
             maxStale: const Duration(days: 30),
@@ -575,76 +596,258 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
 
-          // Верхняя панель: поиск и плашка маршрута
+          // Центральный прицел/пин при выборе точки на карте
+          if (_isPickingPointOnMap)
+            IgnorePointer(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 38),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _pickingForStart ? Colors.greenAccent : Colors.redAccent,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_pickingForStart ? Colors.greenAccent : Colors.redAccent).withAlpha(160),
+                              blurRadius: 20,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _pickingForStart ? Icons.play_arrow_rounded : Icons.flag_rounded,
+                          color: Colors.black,
+                          size: 26,
+                        ),
+                      ),
+                      Container(
+                        width: 3.5,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: _pickingForStart ? Colors.greenAccent : Colors.redAccent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(140),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Верхняя панель: Поиск ИЛИ Плашка режима выбора точки
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 8),
-                  FloatingSearchBar(
-                    userLocation: _userLocation,
-                    onResultSelected: (result) {
-                      _mapController.move(result.position, 16);
-                      final rawPlace = Place(
-                        id: 'search_${result.position.latitude}_${result.position.longitude}',
-                        name: result.title,
-                        position: result.position,
-                        type: result.type,
-                        address: result.subtitle,
-                      );
-                      final place = PlaceDetailsService.enrichPlace(rawPlace);
-                      setState(() {
-                        _nearbyPlaces = [place, ..._nearbyPlaces];
-                      });
-                      _openPlaceDetails(place);
-                    },
-                    onClear: () {},
-                  ),
-                  if (_currentRoute != null)
-                    RouteHeaderCard(
-                      route: _currentRoute!,
-                      onClose: _clearRoute,
-                    ),
-                  if (_isBuildingRoute)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: _isPickingPointOnMap
+                  ? Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Прокладываем маршрут...',
-                            style: TextStyle(color: Colors.white, fontSize: 13),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _pickingForStart
+                              ? Colors.greenAccent.withAlpha(120)
+                              : Colors.redAccent.withAlpha(120),
+                          width: 1.5,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black54,
+                            blurRadius: 20,
+                            offset: Offset(0, 6),
                           ),
                         ],
                       ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: (_pickingForStart
+                                          ? Colors.greenAccent
+                                          : Colors.redAccent)
+                                      .withAlpha(35),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  _pickingForStart
+                                      ? Icons.play_arrow_rounded
+                                      : Icons.flag_rounded,
+                                  color: _pickingForStart
+                                      ? Colors.greenAccent
+                                      : Colors.redAccent,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _pickingForStart
+                                          ? 'Точка отправления (А)'
+                                          : 'Точка назначения (Б)',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Переместите карту под центральный маркер',
+                                      style: TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isPickingPointOnMap = false;
+                                  });
+                                  _openRoutePlanner(
+                                    initialStart: _savedPlannerStart,
+                                    initialDestination: _savedPlannerEnd,
+                                  );
+                                },
+                                icon: const Icon(Icons.close_rounded, color: Colors.white60),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                final center = _mapController.camera.center;
+                                final title =
+                                    'Точка (${center.latitude.toStringAsFixed(4)}, ${center.longitude.toStringAsFixed(4)})';
+                                final item = RoutePointItem(
+                                  id: 'picked_${DateTime.now().millisecondsSinceEpoch}',
+                                  title: title,
+                                  position: center,
+                                  icon: Icons.pin_drop_rounded,
+                                  iconColor: _pickingForStart ? Colors.greenAccent : Colors.redAccent,
+                                );
+
+                                final newStart = _pickingForStart ? item : _savedPlannerStart;
+                                final newEnd = !_pickingForStart ? item : _savedPlannerEnd;
+
+                                setState(() {
+                                  _isPickingPointOnMap = false;
+                                });
+
+                                _openRoutePlanner(
+                                  initialStart: newStart,
+                                  initialDestination: newEnd,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _pickingForStart ? Colors.greenAccent : AppTheme.primary,
+                                foregroundColor: _pickingForStart ? Colors.black : Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                elevation: 4,
+                              ),
+                              icon: const Icon(Icons.check_circle_rounded, size: 20),
+                              label: const Text(
+                                'Выбрать эту точку',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 8),
+                        FloatingSearchBar(
+                          userLocation: _userLocation,
+                          onResultSelected: (result) {
+                            _mapController.move(result.position, 16);
+                            final rawPlace = Place(
+                              id: 'search_${result.position.latitude}_${result.position.longitude}',
+                              name: result.title,
+                              position: result.position,
+                              type: result.type,
+                              address: result.subtitle,
+                            );
+                            final place = PlaceDetailsService.enrichPlace(rawPlace);
+                            setState(() {
+                              _nearbyPlaces = [place, ..._nearbyPlaces];
+                            });
+                            _openPlaceDetails(place);
+                          },
+                          onClear: () {},
+                        ),
+                        if (_currentRoute != null)
+                          RouteHeaderCard(
+                            route: _currentRoute!,
+                            onClose: _clearRoute,
+                          ),
+                        if (_isBuildingRoute)
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Прокладываем маршрут...',
+                                  style: TextStyle(color: Colors.white, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
-                ],
-              ),
             ),
           ),
 
           // Плавающие кнопки справа
           Positioned(
             right: 16,
-            bottom: 120,
+            bottom: _isPickingPointOnMap ? 40 : 120,
             child: Column(
               children: [
                 // Переключатель слоев
@@ -689,7 +892,7 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
 
-                if (_savedMarkers.isNotEmpty || _nearbyPlaces.isNotEmpty) ...[
+                if (!_isPickingPointOnMap && (_savedMarkers.isNotEmpty || _nearbyPlaces.isNotEmpty)) ...[
                   const SizedBox(height: 10),
                   FloatingActionButton.small(
                     heroTag: 'clear_places_fab',
@@ -717,34 +920,35 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
 
-          // Нижняя шторка с категориями и сохраненными местами
-          BottomPanel(
-            savedMarkers: _savedMarkers,
-            onCategorySelected: (cat) => _loadNearbyPlaces(cat),
-            onMarkerSelected: (marker) {
-              _mapController.move(marker.position, 16);
-              _openMarkerDetails(marker);
-            },
-            onClearAllMarkers: _clearAllMarkers,
-            onOpenRoutePlanner: () => _openRoutePlanner(),
-            onShareLocation: () {
-              if (_userLocation != null) {
-                final link =
-                    'https://www.google.com/maps?q=${_userLocation!.latitude},${_userLocation!.longitude}';
-                Clipboard.setData(ClipboardData(text: link));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Ссылка на геопозицию скопирована!'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Геолокация еще не определена')),
-                );
-              }
-            },
-          ),
+          // Нижняя шторка с категориями и сохраненными местами (скрыта в режиме пикера)
+          if (!_isPickingPointOnMap)
+            BottomPanel(
+              savedMarkers: _savedMarkers,
+              onCategorySelected: (cat) => _loadNearbyPlaces(cat),
+              onMarkerSelected: (marker) {
+                _mapController.move(marker.position, 16);
+                _openMarkerDetails(marker);
+              },
+              onClearAllMarkers: _clearAllMarkers,
+              onOpenRoutePlanner: () => _openRoutePlanner(),
+              onShareLocation: () {
+                if (_userLocation != null) {
+                  final link =
+                      'https://www.google.com/maps?q=${_userLocation!.latitude},${_userLocation!.longitude}';
+                  Clipboard.setData(ClipboardData(text: link));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Ссылка на геопозицию скопирована!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Геолокация еще не определена')),
+                  );
+                }
+              },
+            ),
         ],
       ),
     );

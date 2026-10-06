@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 enum MapTileType {
+  esriDarkGray,
+  satellite,
   openStreetMap,
   openTopoMap,
-  satellite,
-  cyclosm,
 }
 
 class MapTileStyle {
@@ -28,9 +28,27 @@ class MapTileStyle {
 
   static const List<MapTileStyle> availableStyles = [
     MapTileStyle(
+      type: MapTileType.esriDarkGray,
+      title: 'Тёмный Неон (Dark Gray)',
+      description: 'Премиальный глубокий ночной стиль',
+      urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      subdomains: [],
+      maxZoom: 16,
+      icon: Icons.dark_mode_rounded,
+    ),
+    MapTileStyle(
+      type: MapTileType.satellite,
+      title: 'Спутник (Esri World)',
+      description: 'Высокодетализированные спутниковые снимки',
+      urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      subdomains: [],
+      maxZoom: 19,
+      icon: Icons.satellite_alt_rounded,
+    ),
+    MapTileStyle(
       type: MapTileType.openStreetMap,
-      title: 'Стандарт (OSM)',
-      description: 'Классическая подробная карта улиц',
+      title: 'Классика (OSM)',
+      description: 'Базовая подробная открытая карта улиц',
       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       subdomains: [],
       maxZoom: 19,
@@ -39,29 +57,11 @@ class MapTileStyle {
     MapTileStyle(
       type: MapTileType.openTopoMap,
       title: 'Топографическая',
-      description: 'Рельеф, высоты и природные объекты',
+      description: 'Рельеф, перепады высот и природные тропы',
       urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
       subdomains: ['a', 'b', 'c'],
       maxZoom: 17,
       icon: Icons.terrain_rounded,
-    ),
-    MapTileStyle(
-      type: MapTileType.satellite,
-      title: 'Спутник (Esri)',
-      description: 'Высокодетализированные спутниковые снимки',
-      urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      subdomains: [],
-      maxZoom: 19,
-      icon: Icons.satellite_alt_rounded,
-    ),
-    MapTileStyle(
-      type: MapTileType.cyclosm,
-      title: 'Городская / Вело (CyclOSM)',
-      description: 'Четкие дорожки, маршруты и ориентиры',
-      urlTemplate: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
-      subdomains: ['a', 'b', 'c'],
-      maxZoom: 18,
-      icon: Icons.directions_bike_rounded,
     ),
   ];
 }
