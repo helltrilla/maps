@@ -41,8 +41,8 @@ class _MainScreenState extends State<MainScreen> {
   // Состояние слоев
   MapTileStyle _selectedTileStyle = MapTileStyle.availableStyles[0]; // Dark Matter по умолчанию
 
-  // Геолокация
-  LatLng? _userLocation;
+  // Геолокация (по умолчанию Калининград, обновляется по сигналу GPS)
+  LatLng? _userLocation = LocationService.defaultLocation;
 
   // Точки и объекты
   List<SavedMarker> _savedMarkers = [];
@@ -82,8 +82,22 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     // Фоновое определение местоположения
-    _updateUserLocation(centerMap: false);
+    await _updateUserLocation(centerMap: false);
 
+    // Фоновая подгрузка мест вокруг геолокации для быстрого поиска
+    _precacheNearbyPlaces();
+  }
+
+  Future<void> _precacheNearbyPlaces() async {
+    try {
+      final loc = _userLocation ?? LocationService.defaultLocation;
+      final places = await PlacesService.getNearbyPlaces(loc, radius: 1200);
+      if (mounted && places.isNotEmpty) {
+        setState(() {
+          _nearbyPlaces = places;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _updateUserLocation({bool centerMap = false}) async {
@@ -106,9 +120,18 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  LatLng? get _safeMapCenter {
+    try {
+      return _mapController.camera.center;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // --- Управление маркерами ---
 
   Future<void> _handleMapTap(LatLng position) async {
+    FocusScope.of(context).unfocus();
     if (_isPickingPointOnMap) {
       _mapController.move(position, _mapController.camera.zoom);
       return;
@@ -790,6 +813,9 @@ class _MainScreenState extends State<MainScreen> {
                         const SizedBox(height: 8),
                         FloatingSearchBar(
                           userLocation: _userLocation,
+                          mapCenter: _safeMapCenter,
+                          nearbyPlaces: _nearbyPlaces,
+                          onCategorySelected: (cat) => _loadNearbyPlaces(cat),
                           onResultSelected: (result) {
                             _mapController.move(result.position, 16);
                             final rawPlace = Place(

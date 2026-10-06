@@ -3,18 +3,26 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import '../app_theme.dart';
+import '../models/place.dart';
 import '../models/search_result.dart';
+import '../services/location_service.dart';
 import '../services/search_service.dart';
 
 class FloatingSearchBar extends StatefulWidget {
   final LatLng? userLocation;
+  final LatLng? mapCenter;
+  final List<Place> nearbyPlaces;
   final ValueChanged<SearchResult> onResultSelected;
+  final ValueChanged<String>? onCategorySelected;
   final VoidCallback onClear;
 
   const FloatingSearchBar({
     super.key,
     this.userLocation,
+    this.mapCenter,
+    this.nearbyPlaces = const [],
     required this.onResultSelected,
+    this.onCategorySelected,
     required this.onClear,
   });
 
@@ -30,12 +38,23 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
   List<SearchResult> _results = [];
   bool _showDropdown = false;
 
+  LatLng get _effectiveLocation =>
+      widget.userLocation ?? widget.mapCenter ?? LocationService.defaultLocation;
+
+  static const List<Map<String, dynamic>> _quickCategories = [
+    {'name': 'Кафе', 'icon': Icons.local_cafe_rounded, 'color': Color(0xFFFF9800)},
+    {'name': 'Магазины', 'icon': Icons.shopping_bag_rounded, 'color': Color(0xFF4CAF50)},
+    {'name': 'Аптеки', 'icon': Icons.local_pharmacy_rounded, 'color': Color(0xFFE91E63)},
+    {'name': 'АЗС', 'icon': Icons.local_gas_station_rounded, 'color': Color(0xFFFF5722)},
+    {'name': 'Рестораны', 'icon': Icons.restaurant_rounded, 'color': Color(0xFF9C27B0)},
+  ];
+
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(() {
       setState(() {
-        _showDropdown = _focusNode.hasFocus && _results.isNotEmpty;
+        _showDropdown = _focusNode.hasFocus;
       });
     });
   }
@@ -47,13 +66,13 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
       setState(() {
         _results = [];
         _isLoading = false;
-        _showDropdown = false;
+        _showDropdown = _focusNode.hasFocus;
       });
       widget.onClear();
       return;
     }
 
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
       setState(() {
         _isLoading = true;
       });
@@ -61,7 +80,7 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
       try {
         final results = await SearchService.search(
           query,
-          proximity: widget.userLocation,
+          proximity: _effectiveLocation,
         );
         if (!mounted) return;
         setState(() {
@@ -89,6 +108,19 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
     widget.onClear();
   }
 
+  void _selectCategory(String cat) {
+    _controller.text = cat;
+    _focusNode.unfocus();
+    setState(() {
+      _showDropdown = false;
+    });
+    if (widget.onCategorySelected != null) {
+      widget.onCategorySelected!(cat);
+    } else {
+      _onQueryChanged(cat);
+    }
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -102,6 +134,7 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Поисковая строка с эффектом Glassmorphism
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ClipRRect(
@@ -110,9 +143,14 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
               filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.surface.withAlpha(200),
+                  color: AppTheme.surface.withAlpha(210),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withAlpha(35), width: 1.2),
+                  border: Border.all(
+                    color: _focusNode.hasFocus
+                        ? AppTheme.accent.withAlpha(180)
+                        : Colors.white.withAlpha(35),
+                    width: 1.2,
+                  ),
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black45,
@@ -122,116 +160,412 @@ class _FloatingSearchBarState extends State<FloatingSearchBar> {
                   ],
                 ),
                 child: TextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-            decoration: InputDecoration(
-              hintText: 'Поиск мест, адресов, улиц...',
-              hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: AppTheme.accent,
-                size: 22,
-              ),
-              suffixIcon: _isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                    )
-                  : _controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.clear_rounded,
-                            color: Colors.white60,
-                            size: 20,
-                          ),
-                          onPressed: _clearSearch,
-                        )
-                      : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 8,
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  decoration: InputDecoration(
+                    hintText: 'Поиск мест и адресов рядом...',
+                    hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppTheme.accent,
+                      size: 22,
+                    ),
+                    suffixIcon: _isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          )
+                        : _controller.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  color: Colors.white60,
+                                  size: 20,
+                                ),
+                                onPressed: _clearSearch,
+                              )
+                            : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 8,
+                    ),
+                  ),
+                  onChanged: _onQueryChanged,
+                ),
               ),
             ),
-            onChanged: _onQueryChanged,
           ),
         ),
-      ),
-    ),
-  ),
-        if (_showDropdown && _results.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            constraints: const BoxConstraints(maxHeight: 280),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black54,
-                  blurRadius: 18,
-                  offset: Offset(0, 8),
+
+        // Выпадающее меню: результаты или предложения мест рядом
+        if (_showDropdown)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 330),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface.withAlpha(240),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: _controller.text.trim().isEmpty
+                      ? _buildNearbySuggestions()
+                      : _buildSearchResults(),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Виджет предложений «Рядом с вами», когда поле ввода пустое
+  Widget _buildNearbySuggestions() {
+    final nearbyPlaces = widget.nearbyPlaces;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Заголовок
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            child: Row(
+              children: [
+                const Icon(Icons.near_me_rounded, color: AppTheme.accent, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  'Рядом с вашей геолокацией',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withAlpha(30),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'GPS',
+                    style: TextStyle(
+                      color: AppTheme.accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              itemCount: _results.length,
-              separatorBuilder: (_, _) =>
-                  const Divider(color: Colors.white10, height: 1),
-              itemBuilder: (context, index) {
-                final item = _results[index];
-                return ListTile(
-                  dense: true,
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
+          ),
+          const SizedBox(height: 10),
+
+          // Быстрые категории
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: _quickCategories.map((cat) {
+                final String name = cat['name'] as String;
+                final IconData icon = cat['icon'] as IconData;
+                final Color color = cat['color'] as Color;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _selectCategory(name),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(25),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: color.withAlpha(80), width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(icon, color: color, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              name,
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          if (nearbyPlaces.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(color: Colors.white10, height: 1),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                'Ближайшие заведения (${nearbyPlaces.length.clamp(0, 5)})',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ...(() {
+              final sorted = List<Place>.from(nearbyPlaces);
+              sorted.sort((a, b) {
+                final da = const Distance().as(LengthUnit.Meter, _effectiveLocation, a.position);
+                final db = const Distance().as(LengthUnit.Meter, _effectiveLocation, b.position);
+                return da.compareTo(db);
+              });
+              return sorted.take(5);
+            })().map((place) {
+              final dist = const Distance().as(
+                LengthUnit.Meter,
+                _effectiveLocation,
+                place.position,
+              );
+              final distFormatted = dist < 1000
+                  ? '${dist.round()} м'
+                  : '${(dist / 1000).toStringAsFixed(1)} км';
+
+              return ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                leading: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: place.color.withAlpha(35),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(place.icon, color: place.color, size: 18),
+                ),
+                title: Text(
+                  place.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                subtitle: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withAlpha(35),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        distFormatted,
+                        style: const TextStyle(
+                          color: AppTheme.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        place.address ?? place.type,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                    const SizedBox(width: 2),
+                    Text(
+                      place.rating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  _focusNode.unfocus();
+                  setState(() {
+                    _showDropdown = false;
+                    _controller.text = place.name;
+                  });
+                  final result = SearchResult(
+                    title: place.name,
+                    subtitle: place.address ?? 'Рядом с вами',
+                    position: place.position,
+                    type: place.type,
+                    distanceMeters: dist,
+                  );
+                  widget.onResultSelected(result);
+                },
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Виджет результатов поиска по введенному тексту
+  Widget _buildSearchResults() {
+    if (_results.isEmpty) {
+      if (_isLoading) {
+        return const SizedBox(
+          height: 90,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
+            ),
+          ),
+        );
+      }
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Center(
+          child: Text(
+            'Ничего не найдено рядом с вами',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      itemCount: _results.length,
+      separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
+      itemBuilder: (context, index) {
+        final item = _results[index];
+        return ListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceSubtle,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Icon(item.icon, color: AppTheme.accent, size: 20),
+          ),
+          title: Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              children: [
+                if (item.distanceFormatted != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceSubtle,
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppTheme.accent.withAlpha(35),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: AppTheme.accent.withAlpha(80),
+                        width: 0.6,
+                      ),
                     ),
-                    child: Icon(item.icon, color: AppTheme.accent, size: 20),
-                  ),
-                  title: Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.near_me_rounded,
+                          size: 9,
+                          color: AppTheme.accent,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          item.distanceFormatted!,
+                          style: const TextStyle(
+                            color: AppTheme.accent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  subtitle: Text(
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
                     item.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
-                  onTap: () {
-                    _focusNode.unfocus();
-                    setState(() {
-                      _showDropdown = false;
-                      _controller.text = item.title;
-                    });
-                    widget.onResultSelected(item);
-                  },
-                );
-              },
+                ),
+              ],
             ),
           ),
-      ],
+          onTap: () {
+            _focusNode.unfocus();
+            setState(() {
+              _showDropdown = false;
+              _controller.text = item.title;
+            });
+            widget.onResultSelected(item);
+          },
+        );
+      },
     );
   }
 }

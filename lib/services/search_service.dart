@@ -3,22 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../models/search_result.dart';
+import 'location_service.dart';
 
 class SearchService {
-  /// Поиск мест и адресов с использованием Photon (Komoot / OSM)
+  /// Поиск мест и адресов с обязательной привязкой к геолокации (Photon / OSM)
   static Future<List<SearchResult>> search(
     String query, {
     LatLng? proximity,
-    int limit = 7,
+    int limit = 10,
   }) async {
     final trimmed = query.trim();
     if (trimmed.length < 2) return [];
 
-    String urlStr =
-        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(trimmed)}&lang=ru&limit=$limit';
-    if (proximity != null) {
-      urlStr += '&lat=${proximity.latitude}&lon=${proximity.longitude}';
-    }
+    // Принудительно привязываем поиск к геолокации пользователя (или городу по умолчанию)
+    final effectiveProximity = proximity ?? LocationService.defaultLocation;
+
+    final urlStr =
+        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(trimmed)}&limit=$limit'
+        '&lat=${effectiveProximity.latitude}&lon=${effectiveProximity.longitude}';
 
     try {
       final response = await http
@@ -72,33 +74,57 @@ class SearchService {
               ? subtitleParts.join(', ')
               : 'Координаты: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
 
+          final pos = LatLng(lat, lng);
+          final dist = const Distance().as(
+            LengthUnit.Meter,
+            effectiveProximity,
+            pos,
+          );
+
           results.add(
             SearchResult(
               title: title,
               subtitle: subtitle,
-              position: LatLng(lat, lng),
+              position: pos,
               type: osmValue,
+              distanceMeters: dist,
             ),
           );
         }
 
-        if (results.isNotEmpty) return results;
+        if (results.isNotEmpty) {
+          // Сортируем: ближайшие к геолокации места всегда первыми
+          results.sort((a, b) {
+            final da = a.distanceMeters ?? double.infinity;
+            final db = b.distanceMeters ?? double.infinity;
+            return da.compareTo(db);
+          });
+          return results;
+        }
       }
     } catch (e) {
       debugPrint('Ошибка поиска Photon: $e');
     }
 
-    // Фоллбек на Nominatim
-    return _searchNominatim(trimmed, limit: limit);
+    // Фоллбек на Nominatim с привязкой к геолокации
+    return _searchNominatim(trimmed, proximity: effectiveProximity, limit: limit);
   }
 
   static Future<List<SearchResult>> _searchNominatim(
     String query, {
-    int limit = 5,
+    required LatLng proximity,
+    int limit = 7,
   }) async {
     try {
+      final double delta = 0.5; // ~55 км вокруг пользователя
+      final minLon = proximity.longitude - delta;
+      final maxLon = proximity.longitude + delta;
+      final minLat = proximity.latitude - delta;
+      final maxLat = proximity.latitude + delta;
+
       final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=$limit&accept-language=ru',
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=$limit&accept-language=ru'
+        '&viewbox=$minLon,$maxLat,$maxLon,$minLat&bounded=0',
       );
       final response = await http
           .get(url, headers: {'User-Agent': 'MapsFlutterApp/1.0'})
@@ -107,21 +133,37 @@ class SearchService {
       if (response.statusCode != 200) return [];
 
       final list = jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
-      return list.map<SearchResult>((item) {
+      final results = list.map<SearchResult>((item) {
         final double lat = double.tryParse(item['lat'].toString()) ?? 0.0;
         final double lon = double.tryParse(item['lon'].toString()) ?? 0.0;
+        final pos = LatLng(lat, lon);
         final displayName = item['display_name'] as String? ?? '';
         final parts = displayName.split(', ');
         final title = parts.isNotEmpty ? parts.first : displayName;
         final subtitle = parts.length > 1 ? parts.sublist(1).join(', ') : '';
 
+        final dist = const Distance().as(
+          LengthUnit.Meter,
+          proximity,
+          pos,
+        );
+
         return SearchResult(
           title: title,
           subtitle: subtitle,
-          position: LatLng(lat, lon),
+          position: pos,
           type: item['type'] as String? ?? 'place',
+          distanceMeters: dist,
         );
       }).toList();
+
+      results.sort((a, b) {
+        final da = a.distanceMeters ?? double.infinity;
+        final db = b.distanceMeters ?? double.infinity;
+        return da.compareTo(db);
+      });
+
+      return results;
     } catch (e) {
       debugPrint('Ошибка поиска Nominatim: $e');
       return [];

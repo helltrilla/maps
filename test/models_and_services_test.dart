@@ -4,6 +4,7 @@ import 'package:maps/models/map_tile_style.dart';
 import 'package:maps/models/place.dart';
 import 'package:maps/models/route_info.dart';
 import 'package:maps/models/saved_marker.dart';
+import 'package:maps/models/search_result.dart';
 import 'package:maps/services/place_details_service.dart';
 
 void main() {
@@ -134,6 +135,28 @@ void main() {
       expect(place.photos.isNotEmpty, isTrue);
       expect(place.reviews.isNotEmpty, isTrue);
       expect(place.address, contains('54.71000'));
+    });
+  });
+
+  group('SearchResult tests', () {
+    test('formats distance under 1000m and over 1000m correctly', () {
+      const resultNear = SearchResult(
+        title: 'Кафе Уют',
+        subtitle: 'ул. Ленина',
+        position: LatLng(54.71, 20.45),
+        type: 'cafe',
+        distanceMeters: 350.2,
+      );
+      expect(resultNear.distanceFormatted, equals('350 м'));
+
+      const resultFar = SearchResult(
+        title: 'Торговый центр',
+        subtitle: 'пр. Мира',
+        position: LatLng(54.72, 20.48),
+        type: 'shop',
+        distanceMeters: 2450.0,
+      );
+      expect(resultFar.distanceFormatted, equals('2.5 км'));
     });
   });
 }
