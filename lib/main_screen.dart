@@ -69,6 +69,26 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     ref.read(placesControllerProvider.notifier).loadNearbyPlaces(pos);
   }
 
+  bool _isMapReady = false;
+
+  LatLng? get _safeMapCenter {
+    if (!_isMapReady) return null;
+    try {
+      return _mapController.camera.center;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  double get _safeMapZoom {
+    if (!_isMapReady) return AppConstants.defaultZoom;
+    try {
+      return _mapController.camera.zoom;
+    } catch (_) {
+      return AppConstants.defaultZoom;
+    }
+  }
+
   @override
   void dispose() {
     _mapController.dispose();
@@ -76,20 +96,23 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _zoom(bool zoomIn) {
-    final double currentZoom = _mapController.camera.zoom;
-    final LatLng currentCenter = _mapController.camera.center;
-    final double newZoom = (zoomIn ? currentZoom + 1 : currentZoom - 1).clamp(
-      AppConstants.minZoom,
-      AppConstants.maxZoom,
-    );
-    _mapController.move(currentCenter, newZoom);
+    if (!_isMapReady) return;
+    try {
+      final double currentZoom = _mapController.camera.zoom;
+      final LatLng currentCenter = _mapController.camera.center;
+      final double newZoom = (zoomIn ? currentZoom + 1 : currentZoom - 1).clamp(
+        AppConstants.minZoom,
+        AppConstants.maxZoom,
+      );
+      _mapController.move(currentCenter, newZoom);
+    } catch (_) {}
   }
 
   void _onMyLocationPressed() {
     HapticFeedback.lightImpact();
     ref.read(userLocationControllerProvider.notifier).setFollowingUser(true);
     final loc = ref.read(userLocationControllerProvider).location;
-    if (loc != null) {
+    if (loc != null && _isMapReady) {
       _mapController.move(loc, 16);
     }
   }
@@ -105,7 +128,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     final isPicking = ref.read(routingControllerProvider).isPickingPointOnMap;
     if (isPicking) {
-      _mapController.move(position, _mapController.camera.zoom);
+      if (_isMapReady) {
+        _mapController.move(position, _safeMapZoom);
+      }
       return;
     }
 
@@ -216,7 +241,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _confirmPickedPoint() {
-    final center = _mapController.camera.center;
+    final center = _safeMapCenter ?? AppConstants.defaultLocation;
     final forStart = ref.read(routingControllerProvider).pickingForStart;
     final pickedItem = RoutePointItem(
       id: 'picked_${DateTime.now().millisecondsSinceEpoch}',
@@ -274,8 +299,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 savedMarkers: savedMarkers,
                 nearbyPlaces: placesState.places,
                 currentRoute: routingState.currentRoute,
+                onMapReady: () {
+                  if (!_isMapReady) {
+                    setState(() {
+                      _isMapReady = true;
+                    });
+                  }
+                },
                 onTap: (_, point) => _handleMapTap(point),
                 onPositionChanged: (camera, hasGesture) {
+                  if (!_isMapReady) {
+                    _isMapReady = true;
+                  }
                   if (hasGesture && userLoc.isFollowingUser) {
                     ref
                         .read(userLocationControllerProvider.notifier)
@@ -325,7 +360,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 child: FloatingSearchBar(
                   key: _searchBarKey,
                   userLocation: userLoc.location,
-                  mapCenter: _mapController.camera.center,
+                  mapCenter: _safeMapCenter,
                   nearbyPlaces: placesState.places,
                   onOpenStateChanged: (isOpen) {
                     ref
@@ -340,7 +375,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         .selectCategory(pos, cat);
                   },
                   onResultSelected: (result) {
-                    _mapController.move(result.position, 16);
+                    if (_isMapReady) {
+                      _mapController.move(result.position, 16);
+                    }
                     final rawPlace = Place(
                       id: '${result.position.latitude}_${result.position.longitude}',
                       name: result.title,
@@ -399,41 +436,36 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
           // 8. Нижняя панель категорий и меток
           if (!routingState.isPickingPointOnMap && !searchState.isSearchOpen)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: BottomPanel(
-                savedMarkers: savedMarkers,
-                onCategorySelected: (cat) {
-                  final pos = userLoc.location ?? AppConstants.defaultLocation;
-                  ref
-                      .read(placesControllerProvider.notifier)
-                      .selectCategory(pos, cat);
-                },
-                onMarkerSelected: (marker) {
-                  _mapController.move(marker.position, 16);
-                  _openMarkerDetails(marker);
-                },
-                onClearAllMarkers: () {
-                  ref.read(markersControllerProvider.notifier).clearAll();
-                },
-                onShareLocation: () {
-                  final loc = userLoc.location;
-                  if (loc != null) {
-                    final link =
-                        'https://www.google.com/maps?q=${loc.latitude},${loc.longitude}';
-                    Clipboard.setData(ClipboardData(text: link));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(AppStrings.locationCopied),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                },
-                onOpenRoutePlanner: () => _openRoutePlannerSheet(),
-              ),
+            BottomPanel(
+              savedMarkers: savedMarkers,
+              onCategorySelected: (cat) {
+                final pos = userLoc.location ?? AppConstants.defaultLocation;
+                ref
+                    .read(placesControllerProvider.notifier)
+                    .selectCategory(pos, cat);
+              },
+              onMarkerSelected: (marker) {
+                _mapController.move(marker.position, 16);
+                _openMarkerDetails(marker);
+              },
+              onClearAllMarkers: () {
+                ref.read(markersControllerProvider.notifier).clearAll();
+              },
+              onShareLocation: () {
+                final loc = userLoc.location;
+                if (loc != null) {
+                  final link =
+                      'https://www.google.com/maps?q=${loc.latitude},${loc.longitude}';
+                  Clipboard.setData(ClipboardData(text: link));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(AppStrings.locationCopied),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              onOpenRoutePlanner: () => _openRoutePlannerSheet(),
             ),
         ],
       ),

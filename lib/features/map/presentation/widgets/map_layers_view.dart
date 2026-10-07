@@ -21,6 +21,7 @@ class MapLayersView extends StatelessWidget {
   final List<SavedMarker> savedMarkers;
   final List<Place> nearbyPlaces;
   final RouteInfo? currentRoute;
+  final VoidCallback? onMapReady;
   final void Function(TapPosition tapPosition, LatLng point) onTap;
   final void Function(MapCamera camera, bool hasGesture) onPositionChanged;
   final void Function(SavedMarker marker) onMarkerTap;
@@ -37,6 +38,7 @@ class MapLayersView extends StatelessWidget {
     required this.savedMarkers,
     required this.nearbyPlaces,
     required this.currentRoute,
+    this.onMapReady,
     required this.onTap,
     required this.onPositionChanged,
     required this.onMarkerTap,
@@ -56,6 +58,7 @@ class MapLayersView extends StatelessWidget {
         initialZoom: AppConstants.defaultZoom,
         minZoom: AppConstants.minZoom,
         maxZoom: AppConstants.maxZoom,
+        onMapReady: onMapReady,
         onTap: onTap,
         onPositionChanged: onPositionChanged,
         cameraConstraint: const CameraConstraint.containLatitude(),
