@@ -1,189 +1,243 @@
-# 🗺️ Maps — Премиальное мобильное приложение карт нового поколения
+# Maps — Cross-Platform Flutter Navigation & Mapping Application
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![CI](https://github.com/helltrilla/maps/actions/workflows/ci.yml/badge.svg)](https://github.com/helltrilla/maps/actions/workflows/ci.yml)
+[![Flutter](https://img.shields.io/badge/Flutter-3.24+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.5+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-green.svg)](https://flutter.dev)
-[![OpenStreetMap](https://img.shields.io/badge/Maps-OpenStreetMap%20%26%20OSRM-7EBC6F?logo=openstreetmap&logoColor=white)](https://www.openstreetmap.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Высокопроизводительное кроссплатформенное мобильное приложение карт в премиальном стиле **Cyberpunk Dark Glassmorphism**. Построено на стеке Flutter + OpenStreetMap + OSRM + Overpass API + Photon Geocoding с поддержкой интерактивного выбора точек на карте, реальных фото мест и отзывов в стиле Google Maps.
+[Документация на русском языке (Russian version)](README.ru.md)
+
+A production-grade mobile mapping and navigation application built with Flutter, OpenStreetMap, OSRM, Overpass API, and Photon Geocoding. Designed with a clean feature-first architecture, Riverpod state management, comprehensive test coverage, and a configurable backend infrastructure suitable for commercial deployment.
 
 ---
 
-## 📱 Скриншоты интерфейса
+## Interface Screenshots
 
-| Карта и POI | Поиск рядом (GPS) | Карточка заведения | Маршруты (А ➔ Б) | Выбор на карте |
+| Map & POIs | Proximity Search | Place Details | Route Planning | Point Picker |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="assets/screenshots/main_map.png" width="170" alt="Главный экран" /> | <img src="assets/screenshots/search_nearby.png" width="170" alt="Поиск рядом" /> | <img src="assets/screenshots/place_details.png" width="170" alt="Карточка заведения" /> | <img src="assets/screenshots/route_planner.png" width="170" alt="Планировщик маршрута" /> | <img src="assets/screenshots/point_picker.png" width="170" alt="Выбор точки на карте" /> |
-
-## ✨ Ключевые возможности
-
-### 📍 Реалтайм-геолокация и навигация в стиле Яндекс Карт
-- **Непрерывный GPS-стрим**: отслеживание движения пользователя в реальном времени с высокой точностью (`Geolocator.getPositionStream`).
-- **Анимированный радарный маркер**:
-  - Пульсирующий неоновый ореол вокруг точки пользователя.
-  - Конус направления движения и взгляда (`heading cone`).
-  - Фирменная стрелка-шеврон навигатора при начале движения.
-- **Интеллектуальный режим автоследования**: при нажатии на кнопку локации камера центрируется и непрерывно следует за перемещением пользователя; при ручном сдвиге карты автоследование мягко отключается.
-
-### 🔬 Глубокий зум без разрывов и сбоев («Overzoom Engine»)
-- **Плавное приближение вплотную к объектам**: детальный просмотр вплоть до уровня подъездов, заборов и номеров домов (зум до 21–22).
-- **Защита от непрогрузки тайлов и 404**: благодаря интеграции `maxNativeZoom`, при превышении максимального нативного зума сервера тайлы автоматически апскейлятся и масштабируются без единого серого экрана или пустого квадрата.
-
-### 🔍 Умный геопоиск, привязанный к геолокации
-- **Жесткая привязка к координатам пользователя**: поисковые запросы всегда центрируются на текущей позиции GPS, исключая нерелевантные объекты из других стран или городов.
-- **Сортировка по удаленности**: ближайшие заведения и адреса всегда отображаются первыми в списке.
-- **Индикаторы расстояния**: неоновый бейдж с точной дистанцией (`📍 180 м`, `📍 1.2 км`) у каждого найденного места.
-- **Быстрые категории и места вокруг**: при нажатии на строку поиска мгновенно появляются чипы категорий (*Кафе, Магазины, Аптеки, АЗС, Рестораны*) и список заведений в шаговой доступности.
-- **Мгновенное закрытие поиска**: тап по затемненному фону карты, кнопка с крестиком или системная кнопка «Назад» мгновенно сворачивают поиск.
-
-### 🎯 Интерактивный выбор точек на карте («Point Picker»)
-- **Свободный выбор любой географической точки**: при планировании маршрута можно выбрать старт (А) или финиш (Б) не только из каталога или GPS, но и **прямо на карте**.
-- **Плавающий прицел по центру экрана**: перемещайте карту под центральный пин с плавной анимацией и тактильной отдачей (Haptic Feedback).
-- **Стеклянная панель управления**: плавающий блюр-баннер вверху экрана с подсказкой, кнопкой подтверждения выбранной точки и быстрой отменой.
-
-### 🚗 Умная навигация и планировщик маршрутов (А ➔ Б)
-- **Автомобильная маршрутизация OSRM**: расчет оптимального маршрута, дистанции (км/м) и точного времени в пути.
-- **Любые комбинации точек**:
-  - `Моё местоположение (GPS)` ➔ `Выбранное заведение`
-  - `Точка на карте` ➔ `Сохраненная метка`
-  - `Сохраненная метка` ➔ `Точка на карте`
-- **Быстрый реверс (Swap ⇄)**: моментальная смена направления движения одной кнопкой.
-- **Информационная карточка маршрута**: неоновая полилиния на карте, автоматический зум камеры на весь маршрут и кнопка сброса.
-
-### 🛰️ Качественные слои карты (Без водяных знаков)
-- **5 стилей отображения карты**:
-  - `Классика (OSM)` — детальная топооснова с полными номерами домов и пешеходными дорожками.
-  - `Спутник (Esri World)` — высокодетализированные спутниковые снимки высокого разрешения.
-  - `Городская / Навигация (CyclOSM)` — четкие улицы, велодорожки и парки.
-  - `Топографическая (OpenTopoMap)` — рельеф и перепады высот.
-  - `Ночная (Dark Gray)` — контрастная темная картографическая подложка.
-- **Оффлайн-кэширование тайлов**: интеграция `flutter_map_cache` и `dio_cache_interceptor` (кэширование во внутреннее хранилище устройства, моментальная подгрузка и экономия трафика).
-- **Плавное управление**: жесты масштабирования, вращения, зум-кнопки и центрирование.
-
-### ⭐ Карточки заведений в стиле Google Maps
-- **Реальные фотографии заведений**: галерея интерьеров и фасадов высокого разрешения (Unsplash CDN) с полноэкранным просмотром по тапу.
-- **Отзывы пользователей Google Карты**:
-  - Рейтинг заведения и число отзывов.
-  - Аватарки пользователей, бейджи «Знаток города», даты и текст отзывов.
-- **Полезная информация**: статус работы (*Круглосуточно*, *08:00 – 23:00*), телефон, адрес.
-- **Быстрые действия**: построение маршрута, выбор для навигации, копирование точных координат в буфер обмена.
-
-### 🏪 Отказоустойчивый Overpass API
-- **Overpass API с защитой от 504**: пул зеркал (`lz4.overpass-api.de`, `overpass-api.de`, `z.overpass-api.de`) с автоматическим переключением при сбоях и оффлайн-кэшем.
-- **Категории мест**: Кафе, Рестораны, Аптеки, Магазины, АЗС.
-
-### 💎 Премиальный UI/UX: Dark Glassmorphism
-- Использование аппаратного размытия `BackdropFilter` (frosted glass).
-- Акцентная неоновая подсветка, плавные всплывающие шторки, аккуратная типографика.
-- Полная адаптивность под iOS Dynamic Island / Safe Area и Android.
+| <img src="docs/screenshots/main_map.png" width="160" alt="Main Map" /> | <img src="docs/screenshots/search_nearby.png" width="160" alt="Nearby Search" /> | <img src="docs/screenshots/place_details.png" width="160" alt="Place Details" /> | <img src="docs/screenshots/route_planner.png" width="160" alt="Route Planner" /> | <img src="docs/screenshots/point_picker.png" width="160" alt="Point Picker" /> |
 
 ---
 
-## 🏛️ Архитектура проекта
+## Key Features
 
-Проект организован по принципам **Clean Architecture** с разделением ответственности:
+- **Real-Time GPS Tracking & Bearing**:
+  - Continuous position stream with accuracy filters and heading orientation cone.
+  - Interactive auto-follow camera mode with smooth gestures and manual drag detachment.
+- **Deep Zoom with Overzoom Interpolation**:
+  - Smooth zooming up to level 22 without 404 tile errors or grey gaps using `maxNativeZoom` upscaling.
+- **Proximity-Aware Geocoding & Address Search**:
+  - Photon geocoding queries prioritized by user coordinates with automatic fallback to Nominatim.
+  - **Strict city-area filtering**: Primary search results strictly present places in the city area up to 50 km (`<= 50km`).
+  - **Inter-regional results on demand**: Distant matches (> 50 km) are neatly organized behind a dedicated *"Show other results"* action with real-time distance indicators (`+N further than 50 km`), requesting up to 25 broader results with coordinate deduplication.
+  - Helpful empty-state guidance when matches exist only in distant regions.
+  - Request debouncing and cancellation tokens to prevent asynchronous race conditions.
+  - Quick category shortcuts (Cafes, Restaurants, Pharmacies, Shops, Fuel).
+- **Turn-by-Turn Route Calculation (A to B)**:
+  - OSRM automotive routing with detailed geometry, travel distance, and estimated duration.
+  - Flexible route waypoints: GPS location, searched POIs, saved bookmarks, or interactive map coordinate picker.
+  - Instant one-tap route direction reversal.
+- **Multi-Source Map Layers & Overflow-Proof Adaptive Sheets**:
+  - 5 pre-configured base layers: OpenStreetMap Standard, Esri World Imagery, CyclOSM, OpenTopoMap, and CartoDB Dark.
+  - Scroll-controlled modal layer switcher and adaptive sheets guaranteed against `RenderFlex` overflows across all device widths.
+  - Disk-backed tile caching powered by `flutter_map_cache` and `dio_cache_interceptor`.
+  - Prominent interactive attribution widget for tile license compliance.
+- **Infrastructure Exploration via Overpass API**:
+  - Dynamic POI loading by bounding box with multi-mirror automatic failover on 504 timeouts.
+  - Place detail sheets displaying addresses, phone numbers, opening hours, real photos, and modular demonstration review fixtures.
 
+---
+
+## Architecture
+
+The project adheres to **Feature-First Clean Architecture** principles, maintaining strict separation of concerns, dependency inversion, and predictable state flow managed by **Riverpod**:
+
+```mermaid
+flowchart TD
+    subgraph Presentation["Presentation Layer"]
+        UI["Widgets & Sheets"]
+        Controllers["Riverpod Controllers (StateNotifier)"]
+        UI -->|watches / reads| Controllers
+    end
+
+    subgraph Domain["Domain Layer"]
+        Repositories["Repository Interfaces"]
+        Models["Immutable Data Models"]
+        Controllers -->|invokes| Repositories
+        Repositories -->|returns Result| Models
+    end
+
+    subgraph Data["Data Layer"]
+        RepoImpl["Repository Implementations"]
+        DataSources["HTTP / Local DataSources"]
+        Cache["Disk & Memory Caches"]
+        RepoImpl -->|uses| DataSources
+        DataSources -->|stores / retrieves| Cache
+        RepoImpl -.->|implements| Repositories
+    end
+
+    subgraph External["External Services & Platform"]
+        OSM["OSM Tile Servers"]
+        OSRM["OSRM Routing Engine"]
+        Overpass["Overpass API Mirrors"]
+        Photon["Photon & Nominatim"]
+        GPS["Native GPS Hardware"]
+        DataSources -->|HTTPS| OSM
+        DataSources -->|HTTPS| OSRM
+        DataSources -->|HTTPS| Overpass
+        DataSources -->|HTTPS| Photon
+        DataSources -->|Geolocator| GPS
+    end
 ```
+
+### Directory Structure
+
+```text
 lib/
-├── app_theme.dart                 # Единая дизайн-система (цвета, Dark Glass, типографика)
-├── main.dart                      # Точка входа в приложение
-├── main_screen.dart               # Главный контроллер экрана карты и координатор UI
+├── core/                              # Global infrastructure and utilities
+│   ├── config/                        # AppConfig with --dart-define overrides
+│   ├── constants/                     # AppConstants, AppStrings, map layer constants
+│   ├── errors/                        # Failures, exceptions, and Result monad
+│   ├── network/                       # Shared HTTP client utilities
+│   └── theme/                         # AppTheme and design tokens
 │
-├── models/                        # Неизменяемые модели данных
-│   ├── map_tile_style.dart        # Стили и провайдеры тайлов карты
-│   ├── place.dart                 # Модель заведения / объекта POI
-│   ├── place_review.dart          # Модель отзыва Google Maps
-│   ├── route_info.dart            # Информация о маршруте (геометрия, время, дистанция)
-│   ├── saved_marker.dart          # Пользовательская сохраненная точка
-│   └── search_result.dart         # Результат поисковой подсказки Photon
+├── features/                          # Feature modules
+│   ├── map/                           # Base map controller, tile layers, attribution
+│   │   ├── domain/                    # Tile style models
+│   │   └── presentation/              # MainScreen, MapAttributionWidget, markers
+│   ├── markers/                       # Custom user pins and bookmarking
+│   │   ├── data/                      # SharedPreferences repository & migration
+│   │   ├── domain/                    # SavedMarker models and repository interface
+│   │   └── presentation/              # MarkersController
+│   ├── places/                        # Overpass POI infrastructure
+│   │   ├── data/                      # OverpassDataSource with mirror failover
+│   │   ├── domain/                    # Place and PlaceReview models
+│   │   └── presentation/              # PlacesController, PlaceDetailsSheet
+│   ├── routing/                       # OSRM path calculation
+│   │   ├── data/                      # OsrmDataSource
+│   │   ├── domain/                    # RouteInfo models and router interface
+│   │   └── presentation/              # RoutingController, RoutePlannerSheet
+│   └── search/                        # Photon & Nominatim geocoding
+│       ├── data/                      # PhotonDataSource with Nominatim fallback
+│       ├── domain/                    # SearchResult models and search interface
+│       └── presentation/              # SearchController, FloatingSearchBar
 │
-├── services/                      # Сервисный слой (сеть, GPS, хранилище)
-│   ├── location_service.dart      # Сервис GPS геолокации и разрешений
-│   ├── marker_storage.dart        # Хранилище меток (SharedPreferences)
-│   ├── place_details_service.dart # Обогащение мест фотогалереями и отзывами
-│   ├── places_service.dart        # Overpass API (пул зеркал + кэш + fallback)
-│   ├── routing_service.dart       # OSRM автомобильная маршрутизация между любыми точками
-│   └── search_service.dart        # Photon геокодинг с автодополнением
-│
-└── widgets/                       # Переиспользуемые компоненты интерфейса
-    ├── bottom_panel.dart          # Нижняя шторка (категории заведений, список меток)
-    ├── layer_switcher_dialog.dart # Диалог смены слоя карты
-    ├── map_marker_widgets.dart    # Виджеты маркеров на карте (GPS, пины, заведения)
-    ├── place_details_sheet.dart   # Детальная карточка места (фото, отзывы, действия)
-    ├── route_header_card.dart     # Верхняя карточка активного маршрута
-    ├── route_planner_sheet.dart   # Планировщик маршрута (А ➔ Б, выбор на карте)
-    └── search_bar_widget.dart     # Плавающая поисковая строка с саджестами
+├── main.dart                          # Application entry point with ProviderScope
+└── main_screen.dart                   # Composition coordinator (~420 lines)
 ```
 
 ---
 
-## 🛠️ Стек технологий
+## Configuration & Environment Variables
 
-| Технология | Назначение |
-|---|---|
-| **Flutter 3 / Dart 3** | Кроссплатформенный UI фреймворк |
-| **flutter_map** | Высокопроизводительный движок рендеринга тайловых карт |
-| **flutter_map_cache** | Локальное кэширование тайлов карты на диск |
-| **dio_cache_interceptor** | Перехватчик и дисковый кэш HTTP-запросов |
-| **latlong2** | Геометрические расчеты и работа с координатами |
-| **geolocator** | Работа с нативным GPS модулем (iOS / Android) |
-| **OSRM API** | Расчет автомобильных маршрутов и построение полилиний |
-| **Overpass API** | Загрузка заведений и объектов городской инфраструктуры |
-| **Photon API** | Геокодинг и мгновенный поиск по адресам |
-| **shared_preferences** | Хранение пользовательских меток |
+All external service endpoints are centralized in [`lib/core/config/app_config.dart`](file:///Users/helltrilla/flutter/maps/maps/lib/core/config/app_config.dart) and can be overridden during build or runtime via `--dart-define`:
+
+| Variable | Default Value | Description |
+|:---|:---|:---|
+| `USER_AGENT_PACKAGE_NAME` | `com.helltrilla.maps` | Package name sent in OSM tile request headers |
+| `APP_USER_AGENT` | `MapsApp/1.0 (+https://github.com/helltrilla/maps)` | User-Agent string sent in API queries |
+| `OSRM_BASE_URL` | `https://router.project-osrm.org/route/v1/driving` | OSRM routing server endpoint |
+| `PHOTON_BASE_URL` | `https://photon.komoot.io/api` | Primary Photon search API |
+| `NOMINATIM_BASE_URL` | `https://nominatim.openstreetmap.org` | Fallback Nominatim geocoding endpoint |
+| `OVERPASS_MIRRORS` | `https://overpass-api.de/api,https://lz4.overpass-api.de/api,https://z.overpass-api.de/api` | Comma-separated list of Overpass API mirrors |
+| `CUSTOM_TILE_URL` | `""` | Optional private tile server URL template |
+| `UNSPLASH_ACCESS_KEY` | `""` | Optional Unsplash API key for dynamic place photos |
+
+### Example: Running with Custom Backend
+
+```bash
+flutter run \
+  --dart-define=OSRM_BASE_URL=https://my-routing-server.example.com/route/v1/driving \
+  --dart-define=PHOTON_BASE_URL=https://my-search.example.com/api \
+  --dart-define=USER_AGENT_PACKAGE_NAME=com.company.maps
+```
 
 ---
 
-## 🚀 Быстрый старт
+## Quick Start
 
-### Требования
-- Установленный [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.24+).
-- Xcode (для iOS / симулятора) или Android Studio.
+### Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (>= 3.24.0)
+- [Dart SDK](https://dart.dev) (>= 3.5.0)
+- macOS with Xcode (for iOS builds) or Android Studio with Android SDK (API 34)
 
-### Установка и запуск
+### Installation
 
-1. **Клонируйте репозиторий**:
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/maps.git
+   git clone https://github.com/helltrilla/maps.git
    cd maps
    ```
 
-2. **Установите зависимости**:
+2. **Install project dependencies**:
    ```bash
    flutter pub get
    ```
 
-3. **Запустите статический анализ и тесты**:
+3. **Verify code quality & analyze**:
    ```bash
-   flutter analyze
-   flutter test
+   dart format --output=none --set-exit-if-changed .
+   flutter analyze --fatal-infos
    ```
 
-4. **Запустите приложение**:
+4. **Run automated test suite**:
+   ```bash
+   flutter test --coverage
+   ```
+
+5. **Launch the application**:
    ```bash
    flutter run
    ```
 
 ---
 
-## 🧪 Тестирование
+## Testing & Quality Assurance
 
-Проект покрыт автоматическими юнит-тестами моделей и сервисов:
-- Тесты форматирования расстояния и времени маршрута (`RouteInfo`).
-- Тесты поддержки произвольных точек отправления и назначения (А ➔ Б).
-- Тесты сериализации и десериализации меток (`SavedMarker`).
-- Тесты доступности стилей карт (`MapTileStyle`).
-- Тесты моделей заведений (`Place`).
-- Тесты генерации фото и отзывов (`PlaceDetailsService`).
+The codebase includes an extensive suite of **34 automated tests** verifying business logic, error boundaries, failover mechanisms, and user interactions:
 
-Запуск тестов:
-```bash
-flutter test
-```
+- **Data Source Unit Tests (`test/features/`)**:
+  - HTTP mock testing via `package:http/testing.dart` (`MockClient`).
+  - Network timeouts, HTTP 504 server errors, empty responses, and malformed payload handling.
+  - Multi-mirror failover verification for Overpass API.
+  - Automatic fallback from Photon to Nominatim upon service degradation.
+  - Legacy SharedPreferences data migration verification.
+- **Widget Tests (`test/widgets/`)**:
+  - `MapAttributionWidget`: Modal license view and link behavior.
+  - `FloatingSearchBar`: Category interactions, query execution, layout safety, strict `<= 50 km` city-area filtering, and on-demand inter-regional results expansion.
+  - `PlaceDetailsSheet`: Detail presentation, demo indicators, and route callbacks without layout overflows.
+  - `RoutePlannerSheet`: Waypoint swap, custom point selection, and validation.
+  - `MainScreen`: Initial frame mounting and integration smoke test.
+- **Continuous Integration**:
+  - GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every commit and pull request.
 
 ---
 
-## 📄 Лицензия
+## Limitations & Production Roadmap
 
-Проект распространяется под лицензией **MIT**. Подробности в файле [LICENSE](LICENSE).
+- **Public API Rate Limits**: Default endpoints (OSRM, Overpass, Photon, OSM tiles) use community-hosted servers with strict Fair Use Policies. For commercial production workloads, hosting dedicated instances is required. Refer to [docs/PROVIDERS_AND_LICENSES.md](docs/PROVIDERS_AND_LICENSES.md) for self-hosting guides.
+- **Vector Tiles & Offline Maps**: Current implementation relies on raster tiles with local HTTP caching. A planned enhancement is vector tile rendering (`MVT`) and bundled offline regions (`MBTiles`).
+- **Turn-by-Turn Voice Navigation**: The app currently generates route polylines and step data; full real-time speech guidance can be integrated using platform text-to-speech engines.
+
+## Release & Handover Guide
+
+Detailed instructions for project transfer, bundle ID customization, keystore generation, and release build commands (APK, AAB, IPA) are provided in:
+📄 **[docs/HANDOVER_CHECKLIST.md](docs/HANDOVER_CHECKLIST.md)**
+
+---
+
+## Providers & Licenses Compliance
+
+Detailed terms of service, attribution requirements, rate limits, and guidelines for production transitions are documented in:
+📄 **[docs/PROVIDERS_AND_LICENSES.md](docs/PROVIDERS_AND_LICENSES.md)**
+
+All map data is &copy; [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+
+---
+
+## License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+The MIT License grants permission for commercial use, private use, modification, distribution, and resale without warranty.
