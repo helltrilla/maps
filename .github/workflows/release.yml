@@ -33,7 +33,7 @@ jobs:
 
       # Для современных версий AGP (Android Gradle Plugin) необходима Java 17
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
