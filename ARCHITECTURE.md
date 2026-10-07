@@ -58,19 +58,45 @@ The exact implementation may vary by feature, but the direction of dependencies 
 
 # 3. Project Structure
 
-The main source structure is:
+The project follows a **Feature-First Clean Architecture**:
 
 ```text
 lib/
-├── main.dart
-├── main_screen.dart
-├── app_theme.dart
+├── core/                              # Global foundation and cross-cutting concerns
+│   ├── config/                        # AppConfig (--dart-define overrides)
+│   ├── constants/                     # AppConstants, AppStrings, MapLayerConstants
+│   ├── errors/                        # Failures, Exceptions, and Result monad
+│   ├── network/                       # Network client utilities
+│   └── theme/                         # AppTheme and design tokens
 │
-├── models/
+├── features/                          # Domain-driven feature packages
+│   ├── map/                           # Base map canvas, tile layers, attribution
+│   │   ├── domain/                    # Tile styles and configuration models
+│   │   └── presentation/              # MapScreen composition, attribution, markers
+│   ├── markers/                       # Saved pins & bookmark storage
+│   │   ├── data/                      # SharedPreferences repository & migration
+│   │   ├── domain/                    # SavedMarker models and repository interface
+│   │   └── presentation/              # MarkersController (StateNotifier)
+│   ├── places/                        # Overpass POI discovery & details
+│   │   ├── data/                      # OverpassDataSource with mirror failover
+│   │   ├── domain/                    # Place and PlaceReview models
+│   │   └── presentation/              # PlacesController, PlaceDetailsSheet
+│   ├── routing/                       # OSRM turn-by-turn routing
+│   │   ├── data/                      # OsrmDataSource
+│   │   ├── domain/                    # RouteInfo model and router interface
+│   │   └── presentation/              # RoutingController, RoutePlannerSheet
+│   └── search/                        # Photon & Nominatim geocoding
+│       ├── data/                      # PhotonDataSource with Nominatim fallback
+│       ├── domain/                    # SearchResult model and search interface
+│       └── presentation/              # SearchController, FloatingSearchBar
 │
-├── services/
+├── main.dart                          # Application entry point with ProviderScope
+├── main_screen.dart                   # Composed screen coordinator (~420 lines)
 │
-└── widgets/
+└── (compatibility facades)            # Re-exports maintained for seamless backward compatibility
+    ├── models/                        # Re-exports feature domain models
+    ├── services/                      # Service facades delegating to data sources
+    └── widgets/                       # Re-exports feature presentation widgets
 ```
 
 ## `main.dart`
@@ -79,8 +105,9 @@ Application entry point.
 
 Responsibilities:
 
-- initialize the application;
-- configure the root widget;
+- initialize Flutter bindings;
+- wrap the root widget tree in `ProviderScope` for Riverpod dependency injection;
+- configure global application theme (`AppTheme.darkTheme`);
 - perform only necessary startup configuration.
 
 Do not place feature-specific business logic here.
@@ -89,153 +116,119 @@ Do not place feature-specific business logic here.
 
 ## `main_screen.dart`
 
-Main application coordinator.
+Modular composition coordinator.
 
-It is responsible for coordinating the primary screen and connecting major UI components.
+It is responsible for assembling feature components into a cohesive single-screen experience:
 
-It may coordinate:
+- watches Riverpod state providers (`ref.watch`);
+- hosts the `FlutterMap` widget and active tile layer;
+- renders overlay widgets (`FloatingSearchBar`, `MapAttributionWidget`, GPS control buttons);
+- opens modular modal sheets (`PlaceDetailsSheet`, `RoutePlannerSheet`);
+- delegates actions directly to feature controllers (`ref.read(...notifier)`).
 
-- map state;
-- user interactions;
-- search;
-- selected places;
-- routes;
-- bottom sheets;
-- location state;
-- map controls.
-
-However, complex business logic should not accumulate here.
-
-If a piece of logic can be independently represented as a service or reusable widget, move it there.
+Business logic, HTTP calls, and JSON parsing must never reside in `main_screen.dart`.
 
 ---
 
-# 4. Models
+# 4. Domain Layer & Models
 
-Models represent structured application data.
-
-Current examples include:
+Models represent structured application data and reside within their corresponding feature domain:
 
 ```text
-models/
-├── map_tile_style.dart
-├── place.dart
-├── place_review.dart
-├── route_info.dart
-├── saved_marker.dart
-└── search_result.dart
+features/
+├── map/domain/models/map_tile_style.dart
+├── markers/domain/models/saved_marker.dart
+├── places/domain/models/place.dart
+├── places/domain/models/place_review.dart
+├── routing/domain/models/route_info.dart
+└── search/domain/models/search_result.dart
 ```
 
-The README identifies these as immutable data models.
+Backward-compatible re-exports are provided under `lib/models/`.
 
-Models should primarily describe data and its basic transformations.
+Rules for models:
 
-Avoid putting:
-
-- network requests;
-- UI logic;
-- navigation;
-- platform-specific behavior;
-
-inside models.
-
-A model should not need to know which widget displays it.
+- Models are immutable data holders.
+- Models should not perform HTTP calls or touch persistent storage.
+- Models contain serialization (`fromJson`, `toJson`) and purely local helpers (formatting, distance calculations).
+- A model should not depend on UI widgets or platform-specific APIs.
 
 ---
 
-# 5. Services
+# 5. Data Sources & Repositories
 
-Services contain operations that should not belong directly to UI widgets.
-
-Current services include:
+External communication and persistence are isolated in the `data` layer behind domain interfaces:
 
 ```text
-services/
-├── location_service.dart
-├── marker_storage.dart
-├── place_details_service.dart
-├── places_service.dart
-├── routing_service.dart
-└── search_service.dart
+features/
+├── markers/
+│   ├── domain/repositories/marker_repository.dart      # Interface
+│   └── data/repositories/marker_repository_impl.dart   # Implementation (SharedPreferences)
+├── places/
+│   └── data/datasources/overpass_datasource.dart       # Overpass API with mirror failover
+├── routing/
+│   └── data/datasources/osrm_datasource.dart           # OSRM HTTP client
+└── search/
+    └── data/datasources/photon_datasource.dart         # Photon API with Nominatim fallback
 ```
 
-These services cover GPS, persistent marker storage, place enrichment, place discovery, routing, and geocoding/search.
+## Data layer responsibilities:
 
-## Service responsibilities
-
-A service should have a clear responsibility.
-
-Examples:
-
-```text
-LocationService
-    ↓
-Location and permissions
-
-PlacesService
-    ↓
-Places / POI retrieval
-
-RoutingService
-    ↓
-Route calculation
-
-SearchService
-    ↓
-Geocoding / search
-
-MarkerStorage
-    ↓
-Persistent saved markers
-
-PlaceDetailsService
-    ↓
-Additional place information
-```
-
-Avoid creating a single "god service" that handles unrelated operations.
+- **DataSources**: Execute raw HTTP requests or platform calls, validate status codes, handle timeouts, and parse JSON into domain models.
+- **Failover & Resilience**: When a remote mirror fails (e.g., HTTP 504), datasources automatically rotate mirrors or fall back to secondary providers.
+- **Result Monad**: Operations return `Result<T>` (`Success<T>` or `Error<T>`) wrapping strongly typed `Failure` objects (`ServerFailure`, `NetworkFailure`, `CacheFailure`) instead of throwing uncaught exceptions.
+- **Injectable Clients**: All data sources accept an `http.Client` parameter for deterministic testing with `MockClient`.
 
 ---
 
-# 6. Widgets
+# 6. Presentation Layer & State Management
 
-Reusable UI components live in:
-
-```text
-widgets/
-```
-
-Current components include:
+UI components and screen controllers reside in `presentation/`:
 
 ```text
-bottom_panel.dart
-layer_switcher_dialog.dart
-map_marker_widgets.dart
-place_details_sheet.dart
-route_header_card.dart
-route_planner_sheet.dart
-search_bar_widget.dart
+features/
+├── map/presentation/
+│   ├── widgets/map_attribution_widget.dart
+│   ├── widgets/map_marker_widgets.dart
+│   └── widgets/layer_switcher_dialog.dart
+├── places/presentation/
+│   ├── controllers/places_controller.dart
+│   └── widgets/place_details_sheet.dart
+├── routing/presentation/
+│   ├── controllers/routing_controller.dart
+│   ├── widgets/route_planner_sheet.dart
+│   └── widgets/route_header_card.dart
+└── search/presentation/
+    ├── controllers/search_controller.dart
+    └── widgets/search_bar_widget.dart
 ```
 
-These components represent reusable parts of the application's UI.
+## Riverpod Controllers:
 
-Widgets should primarily be responsible for:
+- Controllers extend `StateNotifier<T>` to manage reactive state.
+- Widgets consume state via `ref.watch(controllerProvider)` and dispatch events via `ref.read(controllerProvider.notifier).method()`.
+- Controllers do not hold BuildContext references.
 
-- rendering;
-- user interaction;
-- local UI state;
-- communicating user actions upward.
+## Widgets:
 
-Widgets should not directly implement complex API workflows.
+- Pure UI rendering and gesture handling.
+- Local animations and transient UI states (e.g. text field controllers, sheet expansion).
+- Surface user intent to controllers or parent callbacks.
 
 Prefer:
 
 ```text
 Widget
+   ↓ (user action)
+Controller (StateNotifier)
    ↓
-Service / application logic
+Repository / DataSource
    ↓
-External API
+Result<T>
+   ↓
+Controller updates state
+   ↓
+Widget re-renders
 ```
 
 over:
@@ -245,9 +238,7 @@ Widget
    ↓
 HTTP request
    ↓
-JSON parsing
-   ↓
-Business logic
+setState()
 ```
 
 ---

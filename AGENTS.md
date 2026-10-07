@@ -713,3 +713,25 @@ Do not skip understanding.
 Do not skip verification.
 
 Do not confuse "code was written" with "the task is complete".
+
+---
+
+# 32. Repository Verification Standards
+
+When modifying code in this repository (`maps`), you must always execute and verify the following standards:
+
+1. **Code Formatting**:
+   ```bash
+   dart format --output=none --set-exit-if-changed .
+   ```
+2. **Static Analysis** (zero warnings or info messages allowed under strict analyzer settings):
+   ```bash
+   flutter analyze --fatal-infos
+   ```
+3. **Automated Test Suite**:
+   ```bash
+   flutter test --coverage
+   ```
+4. **Clean Commits & Branching**:
+   - Follow English Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`).
+   - Ensure working tree is clean and all modified files are properly tracked.
