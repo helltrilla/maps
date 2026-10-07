@@ -21,20 +21,7 @@ migrate_working_dir/
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
-.vscode/
-devtools_options.yaml
-
-# AI Agents & Internal Guides
-AGENTS.md
-ARCHITECTURE.md
-CLAUDE.md
-GEMINI.md
-.cursor/
-.cursorrules
-.gemini/
-.windsurf/
-.agent/
-.agents/
+#.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
