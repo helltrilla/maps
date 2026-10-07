@@ -1,0 +1,188 @@
+name: Release Build & Publish
+
+on:
+  # Запуск при создании и пуше любого тега версии, начинающегося с 'v' (v1, v1.0.0 и т.д.)
+  push:
+    tags:
+      - 'v*'
+
+  # Возможность ручного запуска из вкладки Actions в GitHub UI
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Имя тега для релиза (например, v1.0.0). Оставьте пустым, если запускаете на существующем теге.'
+        required: false
+        type: string
+        default: ''
+
+# Базовые права для создания релизов и загрузки артефактов
+permissions:
+  contents: write
+
+jobs:
+  # ============================================================================
+  # Сборка Android APK на быстром Linux-раннере
+  # ============================================================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Для современных версий AGP (Android Gradle Plugin) необходима Java 17
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # Установка стабильного Flutter с кешированием зависимостей pub
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android Release APK
+        run: flutter build apk --release
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================================
+  # Сборка iOS на macOS-раннере (без подписи)
+  # ============================================================================
+  build-ios:
+    name: Build iOS Application
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Установка стабильного Flutter с кешированием зависимостей pub
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Сборка iOS приложения без сертификатов Apple Developer
+      - name: Build iOS (No Codesign)
+        run: flutter build ios --release --no-codesign
+
+      # Упаковываем Runner.app в ZIP-архив с сохранением структуры
+      - name: Compress iOS App to ZIP
+        run: |
+          cd build/ios/iphoneos
+          zip -r -9 ../../../ios-app.zip Runner.app
+
+      - name: Upload iOS App artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: ios-app.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================================
+  # Публикация GitHub Release (атомарно после успешной сборки обеих платформ)
+  # ============================================================================
+  create-release:
+    name: Publish GitHub Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Клонируем историю коммитов для генерации чейнджлога
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Скачиваем все собранные артефакты в корень рабочего каталога
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      # Создаем релиз на GitHub и прикрепляем собранные файлы
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ inputs.tag_name != '' && inputs.tag_name || github.ref_name }}
+          name: Release ${{ inputs.tag_name != '' && inputs.tag_name || github.ref_name }}
+          body: |
+            ## 🚀 Version 1.0.0 (v1) / Первая версия (v1)
+
+            Первый стабильный релиз приложения карт с оффлайн-тайлами, умным поиском по городам и геокодингом меток.
+            The first stable release of Maps featuring offline caching, smart city search, and reverse geocoded markers.
+
+            ---
+
+            ### 🇷🇺 Инструкция по установке (Русский)
+
+            #### 🤖 Android:
+            1. Скачайте файл **`app-release.apk`** из блока *Assets* ниже.
+            2. Запустите загруженный APK-файл на Android-устройстве.
+            3. При необходимости разрешите «Установку из неизвестных источников» в настройках безопасности.
+            4. Дождитесь завершения установки и откройте приложение.
+
+            #### 🍏 iOS:
+            > **Примечание:** Сборка выполнена без персонального сертификата разработчика (`--no-codesign`).
+
+            * **Для Симулятора iOS (macOS):**
+              1. Скачайте и распакуйте **`ios-app.zip`** (внутри папка `Runner.app`).
+              2. Запустите симулятор: `open -a Simulator`.
+              3. Перетащите `Runner.app` в окно симулятора или выполните в консоли:
+                 ```bash
+                 xcrun simctl install booted Runner.app
+                 ```
+            * **Для реального iPhone / iPad:**
+              - Используйте утилиты сайдлоадинга (**AltStore**, **Sideloadly**, **TrollStore**) либо подпишите сборку через свой бесплатный Apple ID в **Xcode** / **iOS App Signer**.
+
+            ---
+
+            ### 🇬🇧 Installation Guide (English)
+
+            #### 🤖 Android:
+            1. Download **`app-release.apk`** from the *Assets* section below.
+            2. Open the downloaded APK on your Android device.
+            3. If prompted, grant permission to "Install apps from unknown sources".
+            4. Follow the on-screen prompts to complete installation.
+
+            #### 🍏 iOS:
+            > **Note:** This binary is compiled without an Apple Developer code signature (`--no-codesign`).
+
+            * **For iOS Simulator (macOS):**
+              1. Download and unpack **`ios-app.zip`** (contains `Runner.app`).
+              2. Launch Simulator: `open -a Simulator`.
+              3. Drag and drop `Runner.app` onto the active simulator window, or execute:
+                 ```bash
+                 xcrun simctl install booted Runner.app
+                 ```
+            * **For Physical iPhone / iPad:**
+              - Sideload via **AltStore**, **Sideloadly**, **TrollStore**, or re-sign using your personal Apple ID through **Xcode** / **iOS App Signer**.
+          files: |
+            app-release.apk
+            ios-app.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
