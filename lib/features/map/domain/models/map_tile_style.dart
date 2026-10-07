@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/config/app_config.dart';
 
 enum MapTileType {
   openStreetMap,
@@ -16,6 +17,7 @@ class MapTileStyle {
   final List<String> subdomains;
   final int maxZoom;
   final IconData icon;
+  final String attribution;
 
   const MapTileStyle({
     required this.type,
@@ -25,6 +27,7 @@ class MapTileStyle {
     this.subdomains = const [],
     this.maxZoom = 19,
     required this.icon,
+    required this.attribution,
   });
 
   int get maxNativeZoom => maxZoom;
@@ -34,49 +37,52 @@ class MapTileStyle {
       type: MapTileType.openStreetMap,
       title: 'Классика (OSM)',
       description: 'Детальные улицы, дома, номера и пешеходные зоны',
-      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      urlTemplate: AppConfig.osmTileUrl,
       subdomains: [],
       maxZoom: 19,
       icon: Icons.map_rounded,
+      attribution: '© OpenStreetMap contributors',
     ),
     MapTileStyle(
       type: MapTileType.satellite,
       title: 'Спутник (Esri World)',
       description: 'Высокодетализированные спутниковые снимки местности',
-      urlTemplate:
-          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      urlTemplate: AppConfig.esriSatelliteTileUrl,
       subdomains: [],
       maxZoom: 19,
       icon: Icons.satellite_alt_rounded,
+      attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
     ),
     MapTileStyle(
       type: MapTileType.cyclosm,
       title: 'Городская / Навигация (CyclOSM)',
       description: 'Улицы, велодорожки, парки и четкие ориентиры',
-      urlTemplate:
-          'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+      urlTemplate: AppConfig.cyclosmTileUrl,
       subdomains: ['a', 'b', 'c'],
       maxZoom: 18,
       icon: Icons.directions_bike_rounded,
+      attribution: '© OpenStreetMap contributors. Tiles courtesy of CyclOSM',
     ),
     MapTileStyle(
       type: MapTileType.openTopoMap,
       title: 'Топографическая',
       description: 'Рельеф, перепады высот и природные тропы',
-      urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      urlTemplate: AppConfig.openTopoTileUrl,
       subdomains: ['a', 'b', 'c'],
       maxZoom: 17,
       icon: Icons.terrain_rounded,
+      attribution:
+          'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
     ),
     MapTileStyle(
       type: MapTileType.esriDarkGray,
       title: 'Ночная (Dark Gray)',
       description: 'Контрастный темный режим для ночи',
-      urlTemplate:
-          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      urlTemplate: AppConfig.esriDarkTileUrl,
       subdomains: [],
       maxZoom: 16,
       icon: Icons.dark_mode_rounded,
+      attribution: 'Tiles © Esri — Esri, DeLorme, NAVTEQ',
     ),
   ];
 }

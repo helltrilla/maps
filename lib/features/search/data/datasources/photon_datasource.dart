@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
@@ -16,8 +17,16 @@ abstract class SearchDataSource {
 
 class PhotonDataSourceImpl implements SearchDataSource {
   final http.Client _client;
+  final String _photonBaseUrl;
+  final String _nominatimBaseUrl;
 
-  PhotonDataSourceImpl({required http.Client client}) : _client = client;
+  PhotonDataSourceImpl({
+    required http.Client client,
+    String? photonBaseUrl,
+    String? nominatimBaseUrl,
+  })  : _client = client,
+        _photonBaseUrl = photonBaseUrl ?? AppConfig.photonBaseUrl,
+        _nominatimBaseUrl = nominatimBaseUrl ?? AppConfig.nominatimBaseUrl;
 
   @override
   Future<Result<List<SearchResult>>> search(
@@ -29,13 +38,13 @@ class PhotonDataSourceImpl implements SearchDataSource {
     if (trimmed.length < 2) return const Success([]);
 
     final urlStr =
-        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(trimmed)}&limit=$limit'
+        '$_photonBaseUrl/?q=${Uri.encodeComponent(trimmed)}&limit=$limit'
         '&lat=${proximity.latitude}&lon=${proximity.longitude}';
 
     try {
       final response = await _client.get(
         Uri.parse(urlStr),
-        headers: {'User-Agent': AppConstants.appUserAgent},
+        headers: {'User-Agent': AppConfig.appUserAgent},
       ).timeout(AppConstants.networkTimeout);
 
       if (response.statusCode == 200) {
@@ -129,11 +138,11 @@ class PhotonDataSourceImpl implements SearchDataSource {
       final maxLat = proximity.latitude + delta;
 
       final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=$limit&accept-language=ru'
+        '$_nominatimBaseUrl/search?q=${Uri.encodeComponent(query)}&format=json&limit=$limit&accept-language=ru'
         '&viewbox=$minLon,$maxLat,$maxLon,$minLat&bounded=0',
       );
       final response = await _client.get(url, headers: {
-        'User-Agent': AppConstants.appUserAgent
+        'User-Agent': AppConfig.appUserAgent,
       }).timeout(AppConstants.networkTimeout);
 
       if (response.statusCode != 200) {

@@ -1,9 +1,11 @@
 import 'package:latlong2/latlong.dart';
 
+import '../config/app_config.dart';
+
 class AppConstants {
-  static const String appName = 'Maps';
-  static const String appUserAgent = 'MapsFlutterApp/1.0 (iOS/Android; Mobile)';
-  static const String userAgentPackageName = 'com.helltrilla.maps';
+  static const String appName = AppConfig.appName;
+  static const String appUserAgent = AppConfig.appUserAgent;
+  static const String userAgentPackageName = AppConfig.userAgentPackageName;
 
   // Default coordinate (Kaliningrad)
   static const LatLng defaultLocation = LatLng(54.7104, 20.4522);

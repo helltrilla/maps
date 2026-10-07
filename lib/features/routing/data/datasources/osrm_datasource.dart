@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
@@ -17,10 +18,11 @@ abstract class OsrmDataSource {
 
 class OsrmDataSourceImpl implements OsrmDataSource {
   final http.Client _client;
-  static const String _baseUrl =
-      'https://router.project-osrm.org/route/v1/driving';
+  final String _baseUrl;
 
-  OsrmDataSourceImpl({required http.Client client}) : _client = client;
+  OsrmDataSourceImpl({required http.Client client, String? baseUrl})
+      : _client = client,
+        _baseUrl = baseUrl ?? AppConfig.osrmBaseUrl;
 
   @override
   Future<Result<RouteInfo>> calculateRoute(
@@ -37,7 +39,7 @@ class OsrmDataSourceImpl implements OsrmDataSource {
       final response = await _client.get(
         url,
         headers: {
-          'User-Agent': AppConstants.appUserAgent,
+          'User-Agent': AppConfig.appUserAgent,
         },
       ).timeout(AppConstants.osrmTimeout);
 

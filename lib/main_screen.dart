@@ -13,6 +13,7 @@ import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'features/map/presentation/controllers/map_state_controller.dart';
 import 'features/map/presentation/widgets/layer_switcher_dialog.dart';
+import 'features/map/presentation/widgets/map_attribution_widget.dart';
 import 'features/map/presentation/widgets/map_controls_column.dart';
 import 'features/map/presentation/widgets/map_layers_view.dart';
 import 'features/map/presentation/widgets/point_picker_overlay.dart';
@@ -386,7 +387,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             ),
 
-          // 7. Нижняя панель категорий и меток
+          // 7. Видимая атрибуция карты (OSM, Esri, OpenTopoMap, CyclOSM)
+          if (!routingState.isPickingPointOnMap && !searchState.isSearchOpen)
+            Positioned(
+              left: 14,
+              bottom: 96,
+              child: SafeArea(
+                child: MapAttributionWidget(tileStyle: tileStyle),
+              ),
+            ),
+
+          // 8. Нижняя панель категорий и меток
           if (!routingState.isPickingPointOnMap && !searchState.isSearchOpen)
             Positioned(
               bottom: 0,

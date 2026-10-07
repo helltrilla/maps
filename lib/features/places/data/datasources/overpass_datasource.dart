@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
@@ -13,28 +14,27 @@ abstract class OverpassDataSource {
 
 class OverpassDataSourceImpl implements OverpassDataSource {
   final http.Client _client;
+  final List<String> _mirrors;
 
-  static const List<String> _overpassMirrors = [
-    'https://lz4.overpass-api.de/api/interpreter',
-    'https://overpass-api.de/api/interpreter',
-    'https://z.overpass-api.de/api/interpreter',
-  ];
-
-  OverpassDataSourceImpl({required http.Client client}) : _client = client;
+  OverpassDataSourceImpl({
+    required http.Client client,
+    List<String>? mirrors,
+  })  : _client = client,
+        _mirrors = mirrors ?? AppConfig.overpassMirrors;
 
   @override
   Future<Result<List<Place>>> fetchPlaces(
       LatLng location, String? category, int radius) async {
     final query = _buildOptimizedQuery(location, category, radius);
 
-    for (final mirror in _overpassMirrors) {
+    for (final mirror in _mirrors) {
       try {
         final response = await _client.post(
           Uri.parse(mirror),
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'Accept': 'application/json',
-            'User-Agent': AppConstants.appUserAgent,
+            'User-Agent': AppConfig.appUserAgent,
           },
           body: {'data': query},
         ).timeout(AppConstants.overpassTimeout);
