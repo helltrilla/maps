@@ -243,8 +243,19 @@ All map data is &copy; [OpenStreetMap contributors](https://www.openstreetmap.or
 
 ---
 
+## 📬 Using This Project? / Используете проект?
+
+If you are using this project or parts of it in your app, startup, or product — drop me a line!
+- 📧 **Email**: [helltrilla66@gmail.com](mailto:helltrilla66@gmail.com)
+- 💬 **Telegram**: [@helltrilla66](https://t.me/helltrilla66)
+
+I would love to learn how this project is being used in the real world and feature your product in the **Showcase** section.
+
+---
+
 ## License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 The MIT License grants permission for commercial use, private use, modification, distribution, and resale without warranty.
+
