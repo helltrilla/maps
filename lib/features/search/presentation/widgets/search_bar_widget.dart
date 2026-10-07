@@ -38,9 +38,16 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
   final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _otherResultsLoaded = false;
   List<SearchResult> _results = [];
   bool _showDropdown = false;
   int _searchToken = 0;
+
+  bool get _hasFarResults =>
+      !_otherResultsLoaded &&
+      _results.isNotEmpty &&
+      _results.any((r) => (r.distanceMeters ?? 0) > 50000);
 
   LatLng get _effectiveLocation =>
       widget.userLocation ??
@@ -112,6 +119,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
       setState(() {
         _results = [];
         _isLoading = false;
+        _isLoadingMore = false;
+        _otherResultsLoaded = false;
         _showDropdown = false;
       });
     }
@@ -127,6 +136,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
       setState(() {
         _results = [];
         _isLoading = false;
+        _isLoadingMore = false;
+        _otherResultsLoaded = false;
         _showDropdown = _focusNode.hasFocus;
       });
       widget.onClear();
@@ -137,6 +148,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
       if (!mounted || token != _searchToken) return;
       setState(() {
         _isLoading = true;
+        _isLoadingMore = false;
+        _otherResultsLoaded = false;
       });
 
       try {
@@ -157,6 +170,52 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
         });
       }
     });
+  }
+
+  Future<void> _loadOtherResults() async {
+    final query = _controller.text.trim();
+    if (query.isEmpty || _isLoadingMore) return;
+
+    final token = _searchToken;
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final additional = await SearchService.search(
+        query,
+        proximity: _effectiveLocation,
+        limit: 25,
+      );
+      if (!mounted || token != _searchToken) return;
+
+      final existingKeys = _results
+          .map((r) =>
+              '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}')
+          .toSet();
+
+      final newItems = <SearchResult>[];
+      for (final r in additional) {
+        final key =
+            '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}';
+        if (!existingKeys.contains(key)) {
+          newItems.add(r);
+          existingKeys.add(key);
+        }
+      }
+
+      setState(() {
+        _results = [..._results, ...newItems];
+        _isLoadingMore = false;
+        _otherResultsLoaded = true;
+      });
+    } catch (_) {
+      if (!mounted || token != _searchToken) return;
+      setState(() {
+        _isLoadingMore = false;
+        _otherResultsLoaded = true;
+      });
+    }
   }
 
   void _selectCategory(String cat) {
@@ -644,6 +703,36 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
               ),
+              if (_hasFarResults) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withAlpha(30),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 11,
+                        color: Colors.amber,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '> 50 км',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Spacer(),
               InkWell(
                 onTap: clearAndClose,
@@ -767,6 +856,68 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
             },
           ),
         ),
+        if (_hasFarResults) ...[
+          const Divider(color: Colors.white10, height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: InkWell(
+              onTap: _isLoadingMore ? null : _loadOtherResults,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withAlpha(25),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.accent.withAlpha(70),
+                    width: 0.8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isLoadingMore) ...[
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.accent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ] else ...[
+                      const Icon(
+                        Icons.travel_explore_rounded,
+                        size: 16,
+                        color: AppTheme.accent,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    const Flexible(
+                      child: Text(
+                        'Показать другие результаты',
+                        style: TextStyle(
+                          color: AppTheme.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

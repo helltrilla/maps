@@ -157,6 +157,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => LayerSwitcherModal(
         currentType: currentStyle.type,
         onStyleSelected: (newStyle) {

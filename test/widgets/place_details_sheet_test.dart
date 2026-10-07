@@ -60,4 +60,59 @@ void main() {
 
     expect(routeBuilt, isTrue);
   });
+
+  testWidgets(
+      'PlaceDetailsSheet does not overflow on narrow screens (320px width)',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const testPlace = Place(
+      id: 'place_narrow',
+      name: 'Очень длинное название заведения или кофейни с пекарней',
+      position: LatLng(54.7104, 20.4522),
+      type: 'Ресторан высокой кухни и кулинария',
+      address: 'Улица Космонавта Леонова, дом 42, корпус 3, подъезд 2',
+      rating: 4.9,
+      reviewsCount: 384,
+      photos: [
+        'https://example.com/photo1.jpg',
+        'https://example.com/photo2.jpg'
+      ],
+      reviews: [
+        PlaceReview(
+          authorName: 'Константин Константинопольский',
+          authorAvatar: '',
+          rating: 5,
+          timeAgo: '2 дня назад',
+          text: 'Превосходное обслуживание и вкусный кофе!',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlaceDetailsSheet(
+            place: testPlace,
+            onBuildRoute: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Очень длинное название заведения или кофейни с пекарней'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отзывы пользователей (Демо)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
