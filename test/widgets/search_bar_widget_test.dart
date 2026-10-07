@@ -78,7 +78,7 @@ void main() {
   });
 
   testWidgets(
-      'FloatingSearchBar displays far results indicator and loads broader results on button tap',
+      'FloatingSearchBar shows only near results in city (<=50km) initially, and far results strictly after button tap',
       (tester) async {
     int requestedLimit = 0;
     final fakeRepo = FakeSearchRepository(
@@ -87,28 +87,42 @@ void main() {
         if (limit == 10) {
           return const Success([
             SearchResult(
-              title: 'Далекое Место 1',
-              subtitle: '60 км отсюда',
-              position: LatLng(55.20, 21.10),
+              title: 'Городское Кафе',
+              subtitle: 'Ленинский проспект 5',
+              position: LatLng(54.72, 20.46),
+              type: 'cafe',
+              distanceMeters: 2500, // 2.5 km -> in city <= 50km
+            ),
+            SearchResult(
+              title: 'Загородная Усадьба',
+              subtitle: 'Трасса А-229',
+              position: LatLng(54.95, 21.80),
               type: 'place',
-              distanceMeters: 60000,
+              distanceMeters: 78000, // 78 km -> outside city > 50km
             ),
           ]);
         } else {
           return const Success([
             SearchResult(
-              title: 'Далекое Место 1',
-              subtitle: '60 км отсюда',
-              position: LatLng(55.20, 21.10),
-              type: 'place',
-              distanceMeters: 60000,
+              title: 'Городское Кафе',
+              subtitle: 'Ленинский проспект 5',
+              position: LatLng(54.72, 20.46),
+              type: 'cafe',
+              distanceMeters: 2500,
             ),
             SearchResult(
-              title: 'Далекое Место 2',
-              subtitle: '75 км отсюда',
-              position: LatLng(55.40, 21.30),
+              title: 'Загородная Усадьба',
+              subtitle: 'Трасса А-229',
+              position: LatLng(54.95, 21.80),
               type: 'place',
-              distanceMeters: 75000,
+              distanceMeters: 78000,
+            ),
+            SearchResult(
+              title: 'Дальний Отель',
+              subtitle: 'Курортный проспект',
+              position: LatLng(55.20, 21.60),
+              type: 'hotel',
+              distanceMeters: 92000,
             ),
           ]);
         }
@@ -130,20 +144,84 @@ void main() {
       ),
     );
 
-    await tester.enterText(find.byType(TextField), 'Далекое');
+    await tester.enterText(find.byType(TextField), 'Кафе');
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    expect(find.text('> 50 км'), findsOneWidget);
-    expect(find.text('Далекое Место 1'), findsOneWidget);
-    expect(find.text('Показать другие результаты'), findsOneWidget);
     expect(requestedLimit, equals(10));
+
+    // Initially: main display is ONLY near place in city (<= 50km)
+    expect(find.text('Городское Кафе'), findsOneWidget);
+    expect(find.text('В районе города: 1'), findsOneWidget);
+    expect(find.text('+1 дальше 50 км'), findsOneWidget);
+
+    // Far place (>50km) MUST NOT be visible before clicking button
+    expect(find.text('Загородная Усадьба'), findsNothing);
+
+    // Button to show others is visible
+    expect(find.text('Показать другие результаты'), findsOneWidget);
 
     // Tap "Показать другие результаты"
     await tester.tap(find.text('Показать другие результаты'));
     await tester.pumpAndSettle();
 
     expect(requestedLimit, equals(25));
-    expect(find.text('Далекое Место 2'), findsOneWidget);
+
+    // Now all results are shown strictly after clicking the button
+    expect(find.text('Городское Кафе'), findsOneWidget);
+    expect(find.text('Загородная Усадьба'), findsOneWidget);
+    expect(find.text('Дальний Отель'), findsOneWidget);
+    expect(find.text('Все результаты: 3'), findsOneWidget);
+  });
+
+  testWidgets(
+      'FloatingSearchBar informs when no city results exist and reveals far results after button tap',
+      (tester) async {
+    final fakeRepo = FakeSearchRepository(
+      onSearch: (query, limit) async {
+        return const Success([
+          SearchResult(
+            title: 'Парижский Музей',
+            subtitle: 'Франция',
+            position: LatLng(48.85, 2.35),
+            type: 'tourism',
+            distanceMeters: 1400000, // 1400 km
+          ),
+        ]);
+      },
+    );
+
+    SearchService.setRepositoryForTesting(fakeRepo);
+    addTearDown(SearchService.resetRepositoryForTesting);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FloatingSearchBar(
+            userLocation: const LatLng(54.71, 20.45),
+            onResultSelected: (_) {},
+            onClear: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Париж');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    // Informs that nothing is found in city up to 50km
+    expect(find.text('В районе города (до 50 км) ничего не найдено'),
+        findsOneWidget);
+    expect(find.text('Найдено дальше 50 км: 1'), findsOneWidget);
+
+    // Far place NOT yet in list
+    expect(find.text('Парижский Музей'), findsNothing);
+
+    // Tap button to reveal far results
+    await tester.tap(find.text('Показать другие результаты'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Парижский Музей'), findsOneWidget);
   });
 }

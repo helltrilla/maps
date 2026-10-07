@@ -40,14 +40,19 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _otherResultsLoaded = false;
-  List<SearchResult> _results = [];
+  bool _showFarResults = false;
+  List<SearchResult> _allResults = [];
   bool _showDropdown = false;
   int _searchToken = 0;
 
-  bool get _hasFarResults =>
-      !_otherResultsLoaded &&
-      _results.isNotEmpty &&
-      _results.any((r) => (r.distanceMeters ?? 0) > 50000);
+  List<SearchResult> get _nearResults =>
+      _allResults.where((r) => (r.distanceMeters ?? 0) <= 50000).toList();
+
+  List<SearchResult> get _farResults =>
+      _allResults.where((r) => (r.distanceMeters ?? 0) > 50000).toList();
+
+  List<SearchResult> get _displayedResults =>
+      _showFarResults ? _allResults : _nearResults;
 
   LatLng get _effectiveLocation =>
       widget.userLocation ??
@@ -117,7 +122,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
     _focusNode.unfocus();
     if (mounted) {
       setState(() {
-        _results = [];
+        _allResults = [];
+        _showFarResults = false;
         _isLoading = false;
         _isLoadingMore = false;
         _otherResultsLoaded = false;
@@ -134,7 +140,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
 
     if (query.trim().isEmpty) {
       setState(() {
-        _results = [];
+        _allResults = [];
+        _showFarResults = false;
         _isLoading = false;
         _isLoadingMore = false;
         _otherResultsLoaded = false;
@@ -150,6 +157,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
         _isLoading = true;
         _isLoadingMore = false;
         _otherResultsLoaded = false;
+        _showFarResults = false;
       });
 
       try {
@@ -159,7 +167,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
         );
         if (!mounted || token != _searchToken) return;
         setState(() {
-          _results = results;
+          _allResults = results;
           _isLoading = false;
           _showDropdown = true;
         });
@@ -179,6 +187,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
     final token = _searchToken;
     setState(() {
       _isLoadingMore = true;
+      _showFarResults = true;
     });
 
     try {
@@ -189,7 +198,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
       );
       if (!mounted || token != _searchToken) return;
 
-      final existingKeys = _results
+      final existingKeys = _allResults
           .map((r) =>
               '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}')
           .toSet();
@@ -204,16 +213,25 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
         }
       }
 
+      final merged = [..._allResults, ...newItems];
+      merged.sort((a, b) {
+        final da = a.distanceMeters ?? double.infinity;
+        final db = b.distanceMeters ?? double.infinity;
+        return da.compareTo(db);
+      });
+
       setState(() {
-        _results = [..._results, ...newItems];
+        _allResults = merged;
         _isLoadingMore = false;
         _otherResultsLoaded = true;
+        _showFarResults = true;
       });
     } catch (_) {
       if (!mounted || token != _searchToken) return;
       setState(() {
         _isLoadingMore = false;
         _otherResultsLoaded = true;
+        _showFarResults = true;
       });
     }
   }
@@ -654,7 +672,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
 
   /// Виджет результатов поиска по введенному тексту
   Widget _buildSearchResults() {
-    if (_results.isEmpty) {
+    if (_displayedResults.isEmpty) {
       if (_isLoading) {
         return const SizedBox(
           height: 90,
@@ -666,6 +684,48 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
           ),
         );
       }
+
+      // Если в радиусе города до 50 км ничего нет, но найдены совпадения дальше
+      if (_farResults.isNotEmpty && !_showFarResults) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withAlpha(30),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.travel_explore_rounded,
+                  color: Colors.amber,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'В районе города (до 50 км) ничего не найдено',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Найдено дальше 50 км: ${_farResults.length}',
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              _buildShowOtherButton(),
+            ],
+          ),
+        );
+      }
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Column(
@@ -697,13 +757,15 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
           child: Row(
             children: [
               Text(
-                'Найдено: ${_results.length}',
+                _showFarResults
+                    ? 'Все результаты: ${_displayedResults.length}'
+                    : 'В районе города: ${_displayedResults.length}',
                 style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
               ),
-              if (_hasFarResults) ...[
+              if (!_showFarResults && _farResults.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding:
@@ -712,18 +774,18 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                     color: Colors.amber.withAlpha(30),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.info_outline_rounded,
                         size: 11,
                         color: Colors.amber,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
-                        '> 50 км',
-                        style: TextStyle(
+                        '+${_farResults.length} дальше 50 км',
+                        style: const TextStyle(
                           color: Colors.amber,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -765,11 +827,12 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
           child: ListView.separated(
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
-            itemCount: _results.length,
+            itemCount: _displayedResults.length,
             separatorBuilder: (_, __) =>
                 const Divider(color: Colors.white10, height: 1),
             itemBuilder: (context, index) {
-              final item = _results[index];
+              final item = _displayedResults[index];
+              final isFar = (item.distanceMeters ?? 0) > 50000;
               return ListTile(
                 dense: true,
                 contentPadding:
@@ -781,7 +844,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white10),
                   ),
-                  child: Icon(item.icon, color: AppTheme.accent, size: 20),
+                  child: Icon(item.icon,
+                      color: isFar ? Colors.amber : AppTheme.accent, size: 20),
                 ),
                 title: Text(
                   item.title,
@@ -802,26 +866,30 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 1.5),
                           decoration: BoxDecoration(
-                            color: AppTheme.accent.withAlpha(35),
+                            color: isFar
+                                ? Colors.amber.withAlpha(30)
+                                : AppTheme.accent.withAlpha(35),
                             borderRadius: BorderRadius.circular(5),
                             border: Border.all(
-                              color: AppTheme.accent.withAlpha(80),
+                              color: isFar
+                                  ? Colors.amber.withAlpha(80)
+                                  : AppTheme.accent.withAlpha(80),
                               width: 0.6,
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.near_me_rounded,
                                 size: 9,
-                                color: AppTheme.accent,
+                                color: isFar ? Colors.amber : AppTheme.accent,
                               ),
                               const SizedBox(width: 3),
                               Text(
                                 item.distanceFormatted!,
-                                style: const TextStyle(
-                                  color: AppTheme.accent,
+                                style: TextStyle(
+                                  color: isFar ? Colors.amber : AppTheme.accent,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -856,69 +924,74 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
             },
           ),
         ),
-        if (_hasFarResults) ...[
+        if (!_showFarResults &&
+            (_farResults.isNotEmpty || !_otherResultsLoaded)) ...[
           const Divider(color: Colors.white10, height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: InkWell(
-              onTap: _isLoadingMore ? null : _loadOtherResults,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.accent.withAlpha(25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.accent.withAlpha(70),
-                    width: 0.8,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isLoadingMore) ...[
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppTheme.accent,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ] else ...[
-                      const Icon(
-                        Icons.travel_explore_rounded,
-                        size: 16,
-                        color: AppTheme.accent,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    const Flexible(
-                      child: Text(
-                        'Показать другие результаты',
-                        style: TextStyle(
-                          color: AppTheme.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildShowOtherButton(),
         ],
       ],
+    );
+  }
+
+  Widget _buildShowOtherButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: InkWell(
+        onTap: _isLoadingMore ? null : _loadOtherResults,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: AppTheme.accent.withAlpha(25),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.accent.withAlpha(70),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isLoadingMore) ...[
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.accent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ] else ...[
+                const Icon(
+                  Icons.travel_explore_rounded,
+                  size: 16,
+                  color: AppTheme.accent,
+                ),
+                const SizedBox(width: 8),
+              ],
+              const Flexible(
+                child: Text(
+                  'Показать другие результаты',
+                  style: TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
