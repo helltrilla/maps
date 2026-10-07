@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../data/repositories/location_repository_impl.dart';
 import '../../domain/models/map_tile_style.dart';
@@ -45,7 +46,7 @@ final userLocationControllerProvider =
 
 class UserLocationController extends StateNotifier<UserLocationState> {
   final LocationRepository _repository;
-  StreamSubscription? _positionSub;
+  StreamSubscription<Position>? _positionSub;
 
   UserLocationController(this._repository) : super(const UserLocationState()) {
     _initTracking();

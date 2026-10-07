@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
 import 'features/map/presentation/controllers/map_state_controller.dart';
 import 'features/map/presentation/widgets/layer_switcher_dialog.dart';
@@ -118,7 +119,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Точка добавлена: ${newMarker.title}'),
+          content: Text('${AppStrings.pointAdded}: ${newMarker.title}'),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -127,7 +128,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _showLayerSwitcher() {
     final currentStyle = ref.read(selectedTileStyleProvider);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => LayerSwitcherModal(
@@ -152,7 +153,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
   void _openPlaceDetails(Place place) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -182,7 +183,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -218,7 +219,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final forStart = ref.read(routingControllerProvider).pickingForStart;
     final pickedItem = RoutePointItem(
       id: 'picked_${DateTime.now().millisecondsSinceEpoch}',
-      title: 'Выбранная точка',
+      title: AppStrings.pickedPoint,
       position: center,
       icon: Icons.place_rounded,
       iconColor: AppTheme.accent,
@@ -253,7 +254,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(
-                  child: Text('Ошибка кеша: ${snapshot.error}',
+                  child: Text('${AppStrings.cacheErrorPrefix}${snapshot.error}',
                       style: const TextStyle(color: Colors.white70)),
                 );
               }
@@ -414,7 +415,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     Clipboard.setData(ClipboardData(text: link));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Ссылка на геопозицию скопирована'),
+                        content: Text(AppStrings.locationCopied),
                         duration: Duration(seconds: 2),
                       ),
                     );

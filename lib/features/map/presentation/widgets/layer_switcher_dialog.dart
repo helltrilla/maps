@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/map_tile_style.dart';
 
@@ -36,7 +37,7 @@ class LayerSwitcherModal extends StatelessWidget {
             ),
           ),
           const Text(
-            'Слои карты',
+            AppStrings.mapLayers,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,

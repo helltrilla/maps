@@ -89,10 +89,10 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
         iconColor: Colors.redAccent,
       );
     } else {
-      _startPoint = RoutePointItem(
+      _startPoint = const RoutePointItem(
         id: 'default_kaliningrad',
         title: 'Калининград (центр)',
-        position: const LatLng(54.7104, 20.4522),
+        position: LatLng(54.7104, 20.4522),
         icon: Icons.location_pin,
         iconColor: Colors.redAccent,
       );
@@ -119,10 +119,10 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
         iconColor: p.color,
       );
     } else {
-      _endPoint = RoutePointItem(
+      _endPoint = const RoutePointItem(
         id: 'default_kaliningrad_dest',
         title: 'Калининград (Северный)',
-        position: const LatLng(54.7208, 20.4556),
+        position: LatLng(54.7208, 20.4556),
         icon: Icons.flag_rounded,
         iconColor: Colors.amber,
       );
@@ -184,7 +184,7 @@ class _RoutePlannerSheetState extends State<RoutePlannerSheet> {
   void _selectPointModal(bool isStart) {
     final allPoints = _getAllAvailablePoints();
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(

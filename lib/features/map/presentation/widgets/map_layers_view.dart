@@ -58,7 +58,7 @@ class MapLayersView extends StatelessWidget {
         maxZoom: AppConstants.maxZoom,
         onTap: onTap,
         onPositionChanged: onPositionChanged,
-        cameraConstraint: CameraConstraint.containLatitude(),
+        cameraConstraint: const CameraConstraint.containLatitude(),
       ),
       children: [
         // 1. Тайлы карты (с кешем и глубоким зумом)

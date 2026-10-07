@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class PointPickerOverlay extends StatelessWidget {
@@ -132,8 +133,8 @@ class PointPickerOverlay extends StatelessWidget {
                           children: [
                             Text(
                               pickingForStart
-                                  ? 'Выберите точку отправления (А)'
-                                  : 'Выберите точку назначения (Б)',
+                                  ? AppStrings.pickStartPoint
+                                  : AppStrings.pickDestinationPoint,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -142,7 +143,7 @@ class PointPickerOverlay extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'Переместите карту под центральный пин',
+                              AppStrings.moveMapHint,
                               style: TextStyle(
                                 color: Colors.white60,
                                 fontSize: 12,
@@ -167,7 +168,7 @@ class PointPickerOverlay extends StatelessWidget {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('Отмена'),
+                          child: const Text(AppStrings.cancel),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -188,7 +189,7 @@ class PointPickerOverlay extends StatelessWidget {
                           ),
                           icon: const Icon(Icons.check_rounded, size: 18),
                           label: const Text(
-                            'Выбрать эту точку',
+                            AppStrings.selectThisPoint,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),

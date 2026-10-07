@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../services/location_service.dart';
 import '../../../../services/search_service.dart';
@@ -39,6 +40,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
   bool _isLoading = false;
   List<SearchResult> _results = [];
   bool _showDropdown = false;
+  int _searchToken = 0;
 
   LatLng get _effectiveLocation =>
       widget.userLocation ??
@@ -89,6 +91,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
 
   /// Закрыть поиск и скрыть выпадающее меню
   void closeSearch() {
+    _searchToken++;
+    _debounce?.cancel();
     _focusNode.unfocus();
     if (mounted) {
       setState(() {
@@ -100,6 +104,8 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
 
   /// Очистить текст и закрыть меню
   void clearAndClose() {
+    _searchToken++;
+    _debounce?.cancel();
     _controller.clear();
     _focusNode.unfocus();
     if (mounted) {
@@ -115,6 +121,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
 
   void _onQueryChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
+    final token = ++_searchToken;
 
     if (query.trim().isEmpty) {
       setState(() {
@@ -127,6 +134,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
     }
 
     _debounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted || token != _searchToken) return;
       setState(() {
         _isLoading = true;
       });
@@ -136,14 +144,14 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
           query,
           proximity: _effectiveLocation,
         );
-        if (!mounted) return;
+        if (!mounted || token != _searchToken) return;
         setState(() {
           _results = results;
           _isLoading = false;
           _showDropdown = true;
         });
       } catch (e) {
-        if (!mounted) return;
+        if (!mounted || token != _searchToken) return;
         setState(() {
           _isLoading = false;
         });
@@ -222,7 +230,7 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                       focusNode: _focusNode,
                       style: const TextStyle(color: Colors.white, fontSize: 15),
                       decoration: InputDecoration(
-                        hintText: 'Поиск мест и адресов рядом...',
+                        hintText: AppStrings.searchPlaceholder,
                         hintStyle: const TextStyle(
                             color: Colors.white54, fontSize: 14),
                         prefixIcon: const Icon(

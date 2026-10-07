@@ -20,7 +20,7 @@ class MarkerRepositoryImpl implements MarkerRepository {
 
       final String? markersJson = prefs.getString(AppConstants.savedMarkersKey);
       if (markersJson != null) {
-        final List<dynamic> decodedList = jsonDecode(markersJson);
+        final decodedList = jsonDecode(markersJson) as List<dynamic>;
         final list = decodedList
             .map((item) => SavedMarker.fromJson(item as Map<String, dynamic>))
             .toList();
@@ -30,10 +30,10 @@ class MarkerRepositoryImpl implements MarkerRepository {
       // Проверяем старый ключ для миграции
       final String? legacyJson = prefs.getString(AppConstants.legacyMarkersKey);
       if (legacyJson != null) {
-        final List<dynamic> decodedList = jsonDecode(legacyJson);
+        final decodedList = jsonDecode(legacyJson) as List<dynamic>;
         final migrated = <SavedMarker>[];
         for (int i = 0; i < decodedList.length; i++) {
-          final item = decodedList[i];
+          final item = decodedList[i] as Map<String, dynamic>;
           migrated.add(
             SavedMarker(
               id: 'migrated_$i',

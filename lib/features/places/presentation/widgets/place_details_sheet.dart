@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/place.dart';
 import '../../domain/models/place_review.dart';
@@ -30,7 +31,7 @@ class PlaceDetailsSheet extends StatelessWidget {
   }
 
   void _showFullscreenPhoto(BuildContext context, String imageUrl) {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
       builder: (ctx) => Dialog(
@@ -76,7 +77,7 @@ class PlaceDetailsSheet extends StatelessWidget {
 
   void _showRenameDialog(BuildContext context) {
     final controller = TextEditingController(text: place.name);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Переименовать точку'),
@@ -236,7 +237,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '(${place.reviewsCount} отзывов в Google Maps)',
+                        '(${place.reviewsCount} отзывов • Демо)',
                         style: const TextStyle(
                             fontSize: 13, color: Colors.white60),
                       ),
@@ -264,7 +265,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                         ),
                         icon: const Icon(Icons.directions_rounded),
                         label: const Text(
-                          'Маршрут',
+                          AppStrings.buildRoute,
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
@@ -544,7 +545,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         const Text(
-                          'Отзывы из Google Maps',
+                          'Отзывы пользователей (Демо)',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
@@ -636,7 +637,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                     ),
                     if (review.isLocalGuide)
                       const Text(
-                        'Знаток города (Google Local Guide)',
+                        'Знаток города',
                         style:
                             TextStyle(fontSize: 11, color: Colors.orangeAccent),
                       ),

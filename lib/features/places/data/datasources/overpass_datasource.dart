@@ -111,20 +111,22 @@ out center tags 35;
 ''';
   }
 
-  List<Place> _parseElements(List elements) {
+  List<Place> _parseElements(List<dynamic> elements) {
     final places = <Place>[];
     for (final element in elements) {
-      final tags = (element['tags'] as Map<String, dynamic>?) ?? {};
+      final elMap = element as Map<String, dynamic>;
+      final tags = (elMap['tags'] as Map<String, dynamic>?) ?? {};
 
       double? latitude;
       double? longitude;
 
-      if (element['type'] == 'node') {
-        latitude = (element['lat'] as num?)?.toDouble();
-        longitude = (element['lon'] as num?)?.toDouble();
-      } else if (element['center'] != null) {
-        latitude = (element['center']['lat'] as num?)?.toDouble();
-        longitude = (element['center']['lon'] as num?)?.toDouble();
+      if (elMap['type'] == 'node') {
+        latitude = (elMap['lat'] as num?)?.toDouble();
+        longitude = (elMap['lon'] as num?)?.toDouble();
+      } else if (elMap['center'] != null) {
+        final centerMap = elMap['center'] as Map<String, dynamic>;
+        latitude = (centerMap['lat'] as num?)?.toDouble();
+        longitude = (centerMap['lon'] as num?)?.toDouble();
       }
 
       if (latitude == null || longitude == null) continue;
@@ -139,7 +141,7 @@ out center tags 35;
 
       places.add(
         Place(
-          id: element['id']?.toString() ?? '${latitude}_$longitude',
+          id: elMap['id']?.toString() ?? '${latitude}_$longitude',
           name: name,
           position: LatLng(latitude, longitude),
           type: type,
