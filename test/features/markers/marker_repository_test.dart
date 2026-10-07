@@ -38,6 +38,17 @@ void main() {
       expect((loadRes1 as Success<List<SavedMarker>>).data.length, equals(1));
       expect(loadRes1.data.first.title, equals('Моя точка'));
 
+      // Update m1
+      final updatedM1 =
+          marker.copyWith(title: 'Обновленная точка', address: 'ул. Мира, 1');
+      final updateRes = await repo.updateMarker(updatedM1);
+      expect(updateRes.isSuccess, isTrue);
+
+      final loadAfterUpdate = await repo.loadMarkers();
+      expect((loadAfterUpdate as Success<List<SavedMarker>>).data.first.title,
+          equals('Обновленная точка'));
+      expect(loadAfterUpdate.data.first.address, equals('ул. Мира, 1'));
+
       // Add second marker
       final marker2 = SavedMarker(
         id: 'm2',

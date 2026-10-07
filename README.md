@@ -46,6 +46,11 @@ A production-grade mobile mapping and navigation application built with Flutter,
 - **Infrastructure Exploration via Overpass API**:
   - Dynamic POI loading by bounding box with multi-mirror automatic failover on 504 timeouts.
   - Place detail sheets displaying addresses, phone numbers, opening hours, real photos, and modular demonstration review fixtures.
+- **Street-Aware Pin Dropping & Bookmark Customization**:
+  - Reverse geocoding on map tap: dropped pins automatically resolve and display the detected street and building number as their default title.
+  - Geographic coordinates are neatly organized under a dedicated *Additional Information* section with instant clipboard copying.
+  - Full title editing flexibility: modify marker name immediately upon dropping or anytime later via the place details sheet.
+  - Reactive in-place title updates, SharedPreferences local persistence, and legacy data migration.
 
 ---
 
@@ -195,18 +200,20 @@ flutter run \
 
 ## Testing & Quality Assurance
 
-The codebase includes an extensive suite of **34 automated tests** verifying business logic, error boundaries, failover mechanisms, and user interactions:
+The codebase includes an extensive suite of **40 automated tests** verifying business logic, error boundaries, failover mechanisms, and user interactions:
 
 - **Data Source Unit Tests (`test/features/`)**:
   - HTTP mock testing via `package:http/testing.dart` (`MockClient`).
   - Network timeouts, HTTP 504 server errors, empty responses, and malformed payload handling.
   - Multi-mirror failover verification for Overpass API.
   - Automatic fallback from Photon to Nominatim upon service degradation.
-  - Legacy SharedPreferences data migration verification.
+  - Reverse geocoding parsing street names, house numbers, and graceful offline fallback.
+  - Legacy SharedPreferences data migration verification and marker update persistence.
 - **Widget Tests (`test/widgets/`)**:
   - `MapAttributionWidget`: Modal license view and link behavior.
   - `FloatingSearchBar`: Category interactions, query execution, layout safety, strict `<= 50 km` city-area filtering, and on-demand inter-regional results expansion.
-  - `PlaceDetailsSheet`: Detail presentation, demo indicators, and route callbacks without layout overflows.
+  - `AddMarkerSheet`: Automatic street discovery, pre-filled street name, coordinates in additional info, and immediate title renaming.
+  - `PlaceDetailsSheet`: Detail presentation, demo indicators, coordinates copy action, in-place marker renaming, and route callbacks without layout overflows.
   - `RoutePlannerSheet`: Waypoint swap, custom point selection, and validation.
   - `MainScreen`: Initial frame mounting and integration smoke test.
 - **Continuous Integration**:

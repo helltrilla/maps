@@ -207,7 +207,11 @@ class BottomPanel extends StatelessWidget {
                         ),
                       ),
                       subtitle: Text(
-                        '${marker.position.latitude.toStringAsFixed(4)}, ${marker.position.longitude.toStringAsFixed(4)}',
+                        marker.address != null && marker.address != marker.title
+                            ? '${marker.address!} • ${marker.position.latitude.toStringAsFixed(4)}, ${marker.position.longitude.toStringAsFixed(4)}'
+                            : 'Координаты: ${marker.position.latitude.toStringAsFixed(4)}, ${marker.position.longitude.toStringAsFixed(4)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             color: Colors.white54, fontSize: 12),
                       ),

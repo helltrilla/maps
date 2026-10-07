@@ -5,7 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/place.dart';
 import '../../domain/models/place_review.dart';
 
-class PlaceDetailsSheet extends StatelessWidget {
+class PlaceDetailsSheet extends StatefulWidget {
   final Place place;
   final double? distanceMeters;
   final VoidCallback onBuildRoute;
@@ -22,6 +22,27 @@ class PlaceDetailsSheet extends StatelessWidget {
     this.onDelete,
     this.onRename,
   });
+
+  @override
+  State<PlaceDetailsSheet> createState() => _PlaceDetailsSheetState();
+}
+
+class _PlaceDetailsSheetState extends State<PlaceDetailsSheet> {
+  late String _currentName;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentName = widget.place.name;
+  }
+
+  @override
+  void didUpdateWidget(covariant PlaceDetailsSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.place.name != oldWidget.place.name) {
+      _currentName = widget.place.name;
+    }
+  }
 
   String _formatDistance(double meters) {
     if (meters < 1000) {
@@ -76,16 +97,22 @@ class PlaceDetailsSheet extends StatelessWidget {
   }
 
   void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: place.name);
+    final controller = TextEditingController(text: _currentName);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Переименовать точку'),
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'Переименовать точку',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             hintText: 'Название',
+            hintStyle: TextStyle(color: Colors.white38),
             border: OutlineInputBorder(),
           ),
         ),
@@ -97,8 +124,11 @@ class PlaceDetailsSheet extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               final newName = controller.text.trim();
-              if (newName.isNotEmpty && onRename != null) {
-                onRename!(newName);
+              if (newName.isNotEmpty && widget.onRename != null) {
+                setState(() {
+                  _currentName = newName;
+                });
+                widget.onRename!(newName);
               }
               Navigator.pop(ctx);
             },
@@ -111,6 +141,12 @@ class PlaceDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final place = widget.place;
+    final distanceMeters = widget.distanceMeters;
+    final onBuildRoute = widget.onBuildRoute;
+    final onPlanRoute = widget.onPlanRoute;
+    final onDelete = widget.onDelete;
+    final onRename = widget.onRename;
     return DraggableScrollableSheet(
       initialChildSize: 0.50,
       minChildSize: 0.25,
@@ -159,7 +195,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            place.name,
+                            _currentName,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -194,7 +230,7 @@ class PlaceDetailsSheet extends StatelessWidget {
                               if (distanceMeters != null) ...[
                                 const SizedBox(width: 8),
                                 Text(
-                                  _formatDistance(distanceMeters!),
+                                  _formatDistance(distanceMeters),
                                   style: const TextStyle(
                                     fontSize: 13,
                                     color: AppTheme.accent,
@@ -428,6 +464,51 @@ class PlaceDetailsSheet extends StatelessWidget {
                           ],
                         ),
                       ],
+                      const Divider(color: Colors.white12, height: 16),
+                      Row(
+                        children: [
+                          const Icon(Icons.explore_outlined,
+                              color: Colors.white60, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Координаты (дополнительная информация)',
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.white38),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${place.position.latitude.toStringAsFixed(6)}, ${place.position.longitude.toStringAsFixed(6)}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white70,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded,
+                                size: 16, color: Colors.white54),
+                            tooltip: 'Скопировать координаты',
+                            onPressed: () {
+                              final text =
+                                  '${place.position.latitude}, ${place.position.longitude}';
+                              Clipboard.setData(ClipboardData(text: text));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Координаты скопированы'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

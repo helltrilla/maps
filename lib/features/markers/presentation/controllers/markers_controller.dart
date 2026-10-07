@@ -31,6 +31,13 @@ class MarkersController extends StateNotifier<List<SavedMarker>> {
     }
   }
 
+  Future<void> updateMarker(SavedMarker marker) async {
+    final result = await _repository.updateMarker(marker);
+    if (result.isSuccess) {
+      state = state.map((m) => m.id == marker.id ? marker : m).toList();
+    }
+  }
+
   Future<void> deleteMarker(String id) async {
     final result = await _repository.deleteMarker(id);
     if (result.isSuccess) {
