@@ -215,6 +215,11 @@ The codebase includes an extensive suite of automated tests verifying business l
 - **Vector Tiles & Offline Maps**: Current implementation relies on raster tiles with local HTTP caching. A planned enhancement is vector tile rendering (`MVT`) and bundled offline regions (`MBTiles`).
 - **Turn-by-Turn Voice Navigation**: The app currently generates route polylines and step data; full real-time speech guidance can be integrated using platform text-to-speech engines.
 
+## Release & Handover Guide
+
+Detailed instructions for project transfer, bundle ID customization, keystore generation, and release build commands (APK, AAB, IPA) are provided in:
+📄 **[docs/HANDOVER_CHECKLIST.md](docs/HANDOVER_CHECKLIST.md)**
+
 ---
 
 ## Providers & Licenses Compliance

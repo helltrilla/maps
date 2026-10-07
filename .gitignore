@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android specific
+**/android/local.properties
+**/android/.gradle/
+**/android/captures/
+
+# iOS specific
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+**/ios/**/xcuserdata/
+**/*.xcuserstate

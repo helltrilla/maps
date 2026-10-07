@@ -27,9 +27,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Карте нужен доступ к вашему местоположению.</string>
+	<string>Приложению требуется доступ к геолокации для отображения вашей позиции на карте, поиска ближайших заведений и построения автомобильных маршрутов.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Карте нужен доступ к вашему местоположению.</string>
+	<string>Приложению требуется доступ к геолокации для непрерывного ведения по маршруту и отображения позиции на карте.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Приложению требуется доступ к геолокации для навигации по маршруту.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
