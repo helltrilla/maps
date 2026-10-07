@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../data/repositories/places_repository_impl.dart';
-import '../../domain/models/place.dart';
+import '../../domain/entities/place.dart';
 import '../../domain/repositories/places_repository.dart';
+import '../../domain/usecases/get_nearby_places_usecase.dart';
 
 class PlacesState {
   final List<Place> places;
@@ -28,22 +29,31 @@ class PlacesState {
   }
 }
 
+final getNearbyPlacesUseCaseProvider = Provider<GetNearbyPlacesUseCase>((ref) {
+  return GetNearbyPlacesUseCase(ref.watch(placesRepositoryProvider));
+});
+
 final placesControllerProvider =
     StateNotifierProvider<PlacesController, PlacesState>((ref) {
-  final repo = ref.watch(placesRepositoryProvider);
-  return PlacesController(repo);
+  final useCase = ref.watch(getNearbyPlacesUseCaseProvider);
+  return PlacesController.fromUseCase(useCase);
 });
 
 class PlacesController extends StateNotifier<PlacesState> {
-  final PlacesRepository _repository;
+  final GetNearbyPlacesUseCase _getNearbyPlaces;
 
-  PlacesController(this._repository) : super(const PlacesState());
+  PlacesController(PlacesRepository repository)
+      : _getNearbyPlaces = GetNearbyPlacesUseCase(repository),
+        super(const PlacesState());
+
+  PlacesController.fromUseCase(this._getNearbyPlaces)
+      : super(const PlacesState());
 
   Future<void> loadNearbyPlaces(LatLng location, {String? category}) async {
     final cat = category ?? state.selectedCategory;
     state = state.copyWith(isLoading: true, selectedCategory: cat);
 
-    final result = await _repository.getNearbyPlaces(location, category: cat);
+    final result = await _getNearbyPlaces(location, category: cat);
     result.when(
       success: (places) {
         state = state.copyWith(places: places, isLoading: false);

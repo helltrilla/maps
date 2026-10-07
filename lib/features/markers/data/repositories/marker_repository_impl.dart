@@ -1,55 +1,31 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
-import '../../domain/models/saved_marker.dart';
+import '../../domain/entities/saved_marker.dart';
 import '../../domain/repositories/marker_repository.dart';
+import '../datasources/marker_local_datasource.dart';
+import '../models/saved_marker_model.dart';
+
+final markerLocalDataSourceProvider = Provider<MarkerLocalDataSource>((ref) {
+  return MarkerLocalDataSourceImpl();
+});
 
 final markerRepositoryProvider = Provider<MarkerRepository>((ref) {
-  return MarkerRepositoryImpl();
+  final dataSource = ref.watch(markerLocalDataSourceProvider);
+  return MarkerRepositoryImpl(localDataSource: dataSource);
 });
 
 class MarkerRepositoryImpl implements MarkerRepository {
+  final MarkerLocalDataSource _localDataSource;
+
+  MarkerRepositoryImpl({MarkerLocalDataSource? localDataSource})
+      : _localDataSource = localDataSource ?? MarkerLocalDataSourceImpl();
+
   @override
   Future<Result<List<SavedMarker>>> loadMarkers() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final String? markersJson = prefs.getString(AppConstants.savedMarkersKey);
-      if (markersJson != null) {
-        final decodedList = jsonDecode(markersJson) as List<dynamic>;
-        final list = decodedList
-            .map((item) => SavedMarker.fromJson(item as Map<String, dynamic>))
-            .toList();
-        return Success(list);
-      }
-
-      // Проверяем старый ключ для миграции
-      final String? legacyJson = prefs.getString(AppConstants.legacyMarkersKey);
-      if (legacyJson != null) {
-        final decodedList = jsonDecode(legacyJson) as List<dynamic>;
-        final migrated = <SavedMarker>[];
-        for (int i = 0; i < decodedList.length; i++) {
-          final item = decodedList[i] as Map<String, dynamic>;
-          migrated.add(
-            SavedMarker(
-              id: 'migrated_$i',
-              title: 'Точка #${i + 1}',
-              position: LatLng(
-                (item['lat'] as num).toDouble(),
-                (item['lng'] as num).toDouble(),
-              ),
-            ),
-          );
-        }
-        await saveMarkers(migrated);
-        return Success(migrated);
-      }
-
-      return const Success([]);
+      final models = await _localDataSource.loadMarkers();
+      return Success(List<SavedMarker>.unmodifiable(models));
     } catch (e) {
       return Error(CacheFailure('Ошибка загрузки сохраненных меток: $e'));
     }
@@ -58,9 +34,8 @@ class MarkerRepositoryImpl implements MarkerRepository {
   @override
   Future<Result<void>> saveMarkers(List<SavedMarker> markers) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonList = markers.map((m) => m.toJson()).toList();
-      await prefs.setString(AppConstants.savedMarkersKey, jsonEncode(jsonList));
+      final models = markers.map(SavedMarkerModel.fromEntity).toList();
+      await _localDataSource.saveMarkers(models);
       return const Success(null);
     } catch (e) {
       return Error(CacheFailure('Ошибка сохранения меток: $e'));
@@ -107,9 +82,7 @@ class MarkerRepositoryImpl implements MarkerRepository {
   @override
   Future<Result<void>> clearAll() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(AppConstants.savedMarkersKey);
-      await prefs.remove(AppConstants.legacyMarkersKey);
+      await _localDataSource.clearAll();
       return const Success(null);
     } catch (e) {
       return Error(CacheFailure('Ошибка очистки маркеров: $e'));

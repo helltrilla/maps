@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../domain/entities/location_update.dart';
 import '../../domain/repositories/location_repository.dart';
 
 final locationRepositoryProvider = Provider<LocationRepository>((ref) {
@@ -83,6 +84,16 @@ class LocationRepositoryImpl implements LocationRepository {
   }
 
   @override
+  Stream<LocationUpdate> getLocationStream({int distanceFilter = 1}) {
+    return getPositionStream(distanceFilter: distanceFilter).map(
+      (pos) => LocationUpdate(
+        position: LatLng(pos.latitude, pos.longitude),
+        heading: pos.heading,
+        speed: pos.speed,
+      ),
+    );
+  }
+
   Stream<Position> getPositionStream({
     LocationAccuracy accuracy = LocationAccuracy.high,
     int distanceFilter = 1,

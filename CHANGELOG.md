@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-07
+
+### Changed
+- **Full Clean Architecture Refactoring**:
+  - Isolated all Domain entities (`domain/entities/`) as pure, immutable Dart classes with zero `package:flutter`, `package:geolocator`, or JSON serialization dependencies.
+  - Extracted `SavedMarkerModel` (`data/models/`) for JSON serialization and `MarkerLocalDataSource` (`data/datasources/`) for `SharedPreferences` persistence.
+  - Added atomic Use Cases (`domain/usecases/`) across all feature modules (`markers`, `places`, `routing`, `search`, `map`) and connected Riverpod `StateNotifier` controllers strictly through Use Cases.
+  - Moved UI-specific `IconData` and `Color` mappings into Presentation-layer extensions (`presentation/extensions/`).
+  - Removed direct repository calls and generic `try/catch` blocks from Presentation widgets (`AddMarkerSheet`, `FloatingSearchBar`).
+
+## [1.0.0] - 2026-10-07
+
+### Added
+- **Automated Release CI/CD**: Added GitHub Actions workflow (`.github/workflows/release.yml`) building Android APK and iOS app archives with automated GitHub Releases.
+- **Reverse Geocoded Markers**: Automatically resolve street and building number on map tap with immediate and post-creation marker renaming.
+- **City-Area Proximity Filtering**: Restrict primary search results to `<= 50 km` with on-demand expansion for distant matches.
+
 ## [0.1.0] - 2026-10-07
 
 ### Added

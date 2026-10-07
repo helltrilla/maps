@@ -24,10 +24,10 @@ void main() {
     test('adds, updates, and deletes marker successfully', () async {
       final repo = MarkerRepositoryImpl();
 
-      final marker = SavedMarker(
+      const marker = SavedMarker(
         id: 'm1',
         title: 'Моя точка',
-        position: const LatLng(54.71, 20.45),
+        position: LatLng(54.71, 20.45),
       );
 
       // Add
@@ -50,10 +50,10 @@ void main() {
       expect(loadAfterUpdate.data.first.address, equals('ул. Мира, 1'));
 
       // Add second marker
-      final marker2 = SavedMarker(
+      const marker2 = SavedMarker(
         id: 'm2',
         title: 'Вторая точка',
-        position: const LatLng(54.72, 20.46),
+        position: LatLng(54.72, 20.46),
       );
       final addRes2 = await repo.addMarker(marker2);
       expect(addRes2.isSuccess, isTrue);

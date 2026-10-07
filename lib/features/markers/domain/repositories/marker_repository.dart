@@ -1,5 +1,5 @@
 import '../../../../core/errors/result.dart';
-import '../models/saved_marker.dart';
+import '../entities/saved_marker.dart';
 
 abstract class MarkerRepository {
   Future<Result<List<SavedMarker>>> loadMarkers();

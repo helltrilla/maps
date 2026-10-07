@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/map_tile_style.dart';
+import '../extensions/map_tile_style_ui_extension.dart';
 
 class LayerSwitcherModal extends StatelessWidget {
   final MapTileType currentType;

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../search/data/repositories/search_repository_impl.dart';
+import '../../../search/presentation/controllers/search_controller.dart';
 import '../../domain/models/saved_marker.dart';
 
 class AddMarkerSheet extends ConsumerStatefulWidget {
@@ -43,46 +43,33 @@ class _AddMarkerSheetState extends ConsumerState<AddMarkerSheet> {
   }
 
   Future<void> _resolveAddress() async {
-    try {
-      final repo = ref.read(searchRepositoryProvider);
-      final result = await repo.reverseGeocode(widget.position);
-      if (!mounted) return;
+    final searchController = ref.read(searchControllerProvider.notifier);
+    final result = await searchController.reverseGeocode(widget.position);
+    if (!mounted) return;
 
-      result.when(
-        success: (geocode) {
-          setState(() {
-            _isLoadingAddress = false;
-            _street = geocode.street;
-            _fullAddress = geocode.fullAddress;
-            if (!_userEditedTitle) {
-              _titleController.text = geocode.street;
-            }
-          });
-        },
-        error: (_) {
-          setState(() {
-            _isLoadingAddress = false;
-            _street = 'Точка на карте';
-            _fullAddress =
-                'Координаты: ${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}';
-            if (!_userEditedTitle) {
-              _titleController.text = _street!;
-            }
-          });
-        },
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingAddress = false;
-        _street = 'Точка на карте';
-        _fullAddress =
-            'Координаты: ${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}';
-        if (!_userEditedTitle) {
-          _titleController.text = _street!;
-        }
-      });
-    }
+    result.when(
+      success: (geocode) {
+        setState(() {
+          _isLoadingAddress = false;
+          _street = geocode.street;
+          _fullAddress = geocode.fullAddress;
+          if (!_userEditedTitle) {
+            _titleController.text = geocode.street;
+          }
+        });
+      },
+      error: (_) {
+        setState(() {
+          _isLoadingAddress = false;
+          _street = 'Точка на карте';
+          _fullAddress =
+              'Координаты: ${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}';
+          if (!_userEditedTitle) {
+            _titleController.text = _street!;
+          }
+        });
+      },
+    );
   }
 
   void _submit() {

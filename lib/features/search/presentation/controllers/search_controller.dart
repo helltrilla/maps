@@ -2,9 +2,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/errors/result.dart';
 import '../../data/repositories/search_repository_impl.dart';
-import '../../domain/models/search_result.dart';
+import '../../domain/entities/reverse_geocode_result.dart';
+import '../../domain/entities/search_result.dart';
 import '../../domain/repositories/search_repository.dart';
+import '../../domain/usecases/search_usecases.dart';
 
 class SearchState {
   final List<SearchResult> results;
@@ -34,17 +37,38 @@ class SearchState {
   }
 }
 
+final searchPlacesUseCaseProvider = Provider<SearchPlacesUseCase>((ref) {
+  return SearchPlacesUseCase(ref.watch(searchRepositoryProvider));
+});
+
+final reverseGeocodeUseCaseProvider = Provider<ReverseGeocodeUseCase>((ref) {
+  return ReverseGeocodeUseCase(ref.watch(searchRepositoryProvider));
+});
+
 final searchControllerProvider =
     StateNotifierProvider<SearchController, SearchState>((ref) {
-  final repo = ref.watch(searchRepositoryProvider);
-  return SearchController(repo);
+  return SearchController.fromUseCases(
+    searchPlaces: ref.watch(searchPlacesUseCaseProvider),
+    reverseGeocode: ref.watch(reverseGeocodeUseCaseProvider),
+  );
 });
 
 class SearchController extends StateNotifier<SearchState> {
-  final SearchRepository _repository;
+  final SearchPlacesUseCase _searchPlaces;
+  final ReverseGeocodeUseCase _reverseGeocode;
   Timer? _debounceTimer;
 
-  SearchController(this._repository) : super(const SearchState());
+  SearchController(SearchRepository repository)
+      : _searchPlaces = SearchPlacesUseCase(repository),
+        _reverseGeocode = ReverseGeocodeUseCase(repository),
+        super(const SearchState());
+
+  SearchController.fromUseCases({
+    required SearchPlacesUseCase searchPlaces,
+    required ReverseGeocodeUseCase reverseGeocode,
+  })  : _searchPlaces = searchPlaces,
+        _reverseGeocode = reverseGeocode,
+        super(const SearchState());
 
   void setSearchOpen(bool isOpen) {
     state = state.copyWith(isSearchOpen: isOpen);
@@ -69,7 +93,7 @@ class SearchController extends StateNotifier<SearchState> {
 
   Future<void> executeSearch(String query, {LatLng? proximity}) async {
     state = state.copyWith(isLoading: true);
-    final result = await _repository.search(query, proximity: proximity);
+    final result = await _searchPlaces(query, proximity: proximity);
     result.when(
       success: (results) {
         state = state.copyWith(results: results, isLoading: false);
@@ -78,6 +102,10 @@ class SearchController extends StateNotifier<SearchState> {
         state = state.copyWith(results: const [], isLoading: false);
       },
     );
+  }
+
+  Future<Result<ReverseGeocodeResult>> reverseGeocode(LatLng position) {
+    return _reverseGeocode(position);
   }
 
   void clearSearch() {

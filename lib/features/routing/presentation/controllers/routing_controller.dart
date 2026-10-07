@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../data/repositories/routing_repository_impl.dart';
-import '../../domain/models/route_info.dart';
+import '../../domain/entities/route_info.dart';
 import '../../domain/repositories/routing_repository.dart';
+import '../../domain/usecases/get_route_usecase.dart';
 
 class RoutingState {
   final RouteInfo? currentRoute;
@@ -36,16 +37,24 @@ class RoutingState {
   }
 }
 
+final getRouteUseCaseProvider = Provider<GetRouteUseCase>((ref) {
+  return GetRouteUseCase(ref.watch(routingRepositoryProvider));
+});
+
 final routingControllerProvider =
     StateNotifierProvider<RoutingController, RoutingState>((ref) {
-  final repo = ref.watch(routingRepositoryProvider);
-  return RoutingController(repo);
+  final useCase = ref.watch(getRouteUseCaseProvider);
+  return RoutingController.fromUseCase(useCase);
 });
 
 class RoutingController extends StateNotifier<RoutingState> {
-  final RoutingRepository _repository;
+  final GetRouteUseCase _getRoute;
 
-  RoutingController(this._repository) : super(const RoutingState());
+  RoutingController(RoutingRepository repository)
+      : _getRoute = GetRouteUseCase(repository),
+        super(const RoutingState());
+
+  RoutingController.fromUseCase(this._getRoute) : super(const RoutingState());
 
   void startPickingPoint({required bool forStart}) {
     state = state.copyWith(
@@ -68,7 +77,7 @@ class RoutingController extends StateNotifier<RoutingState> {
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: () => null);
 
-    final result = await _repository.getRoute(
+    final result = await _getRoute(
       start,
       destination,
       startName: startName,

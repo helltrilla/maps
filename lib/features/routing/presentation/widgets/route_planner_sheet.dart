@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../markers/domain/models/saved_marker.dart';
 import '../../../places/domain/models/place.dart';
+import '../../../places/presentation/extensions/place_ui_extension.dart';
 
 class RoutePointItem {
   final String id;

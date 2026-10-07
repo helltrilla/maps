@@ -4,6 +4,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/place.dart';
 import '../../domain/models/place_review.dart';
+import '../extensions/place_ui_extension.dart';
 
 class PlaceDetailsSheet extends StatefulWidget {
   final Place place;

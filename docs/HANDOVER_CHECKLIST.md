@@ -10,8 +10,8 @@
 - [x] Полный исходный код репозитория (ветка `main` / релизные теги) без зависимостей от личных локальных путей разработчика.
 - [x] Настроенная модульная архитектура Feature-First Clean Architecture (`lib/core`, `lib/features`).
 - [x] Настроенный пайплайн непрерывной интеграции (CI) GitHub Actions (`.github/workflows/ci.yml`).
-- [x] Набор автоматических unit- и widget-тестов (29 тестов с замоканным HTTP).
-- [x] Комплект документации: `README.md`, `README.ru.md`, `ARCHITECTURE.md`, `AGENTS.md`, `CHANGELOG.md`, `docs/PROVIDERS_AND_LICENSES.md`.
+- [x] Набор автоматических unit- и widget-тестов (40 тестов с замоканным HTTP).
+- [x] Комплект документации: `README.md`, `README.ru.md`, `CHANGELOG.md`, `docs/PROVIDERS_AND_LICENSES.md`.
 - [x] Права владельца (Organization Owner или Admin) в GitHub репозитории.
 
 ### 1.2 Что необходимо перегенерировать покупателю

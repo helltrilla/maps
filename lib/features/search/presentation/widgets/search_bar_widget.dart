@@ -7,7 +7,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../services/location_service.dart';
 import '../../../../services/search_service.dart';
 import '../../../places/domain/models/place.dart';
+import '../../../places/presentation/extensions/place_ui_extension.dart';
 import '../../domain/models/search_result.dart';
+import '../extensions/search_result_ui_extension.dart';
 
 class FloatingSearchBar extends StatefulWidget {
   final LatLng? userLocation;
@@ -160,23 +162,16 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
         _showFarResults = false;
       });
 
-      try {
-        final results = await SearchService.search(
-          query,
-          proximity: _effectiveLocation,
-        );
-        if (!mounted || token != _searchToken) return;
-        setState(() {
-          _allResults = results;
-          _isLoading = false;
-          _showDropdown = true;
-        });
-      } catch (e) {
-        if (!mounted || token != _searchToken) return;
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      final results = await SearchService.search(
+        query,
+        proximity: _effectiveLocation,
+      );
+      if (!mounted || token != _searchToken) return;
+      setState(() {
+        _allResults = results;
+        _isLoading = false;
+        _showDropdown = true;
+      });
     });
   }
 
@@ -190,50 +185,41 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
       _showFarResults = true;
     });
 
-    try {
-      final additional = await SearchService.search(
-        query,
-        proximity: _effectiveLocation,
-        limit: 25,
-      );
-      if (!mounted || token != _searchToken) return;
+    final additional = await SearchService.search(
+      query,
+      proximity: _effectiveLocation,
+      limit: 25,
+    );
+    if (!mounted || token != _searchToken) return;
 
-      final existingKeys = _allResults
-          .map((r) =>
-              '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}')
-          .toSet();
+    final existingKeys = _allResults
+        .map((r) =>
+            '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}')
+        .toSet();
 
-      final newItems = <SearchResult>[];
-      for (final r in additional) {
-        final key =
-            '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}';
-        if (!existingKeys.contains(key)) {
-          newItems.add(r);
-          existingKeys.add(key);
-        }
+    final newItems = <SearchResult>[];
+    for (final r in additional) {
+      final key =
+          '${r.position.latitude.toStringAsFixed(5)},${r.position.longitude.toStringAsFixed(5)}';
+      if (!existingKeys.contains(key)) {
+        newItems.add(r);
+        existingKeys.add(key);
       }
-
-      final merged = [..._allResults, ...newItems];
-      merged.sort((a, b) {
-        final da = a.distanceMeters ?? double.infinity;
-        final db = b.distanceMeters ?? double.infinity;
-        return da.compareTo(db);
-      });
-
-      setState(() {
-        _allResults = merged;
-        _isLoadingMore = false;
-        _otherResultsLoaded = true;
-        _showFarResults = true;
-      });
-    } catch (_) {
-      if (!mounted || token != _searchToken) return;
-      setState(() {
-        _isLoadingMore = false;
-        _otherResultsLoaded = true;
-        _showFarResults = true;
-      });
     }
+
+    final merged = [..._allResults, ...newItems];
+    merged.sort((a, b) {
+      final da = a.distanceMeters ?? double.infinity;
+      final db = b.distanceMeters ?? double.infinity;
+      return da.compareTo(db);
+    });
+
+    setState(() {
+      _allResults = merged;
+      _isLoadingMore = false;
+      _otherResultsLoaded = true;
+      _showFarResults = true;
+    });
   }
 
   void _selectCategory(String cat) {

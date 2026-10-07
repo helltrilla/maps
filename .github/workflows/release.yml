@@ -130,10 +130,19 @@ jobs:
           tag_name: ${{ inputs.tag_name != '' && inputs.tag_name || github.ref_name }}
           name: Release ${{ inputs.tag_name != '' && inputs.tag_name || github.ref_name }}
           body: |
-            ## 🚀 Version 1.0.0 (v1) / Первая версия (v1)
+            ## 🚀 Release ${{ inputs.tag_name != '' && inputs.tag_name || github.ref_name }}
 
-            Первый стабильный релиз приложения карт с оффлайн-тайлами, умным поиском по городам и геокодингом меток.
-            The first stable release of Maps featuring offline caching, smart city search, and reverse geocoded markers.
+            ### 🛠 Что нового / What's New:
+            - **Произведен рефакторинг под полноценный Clean Architecture (RU)**:
+              - Полная изоляция **Domain-слоя** (чистый Dart, нулевые зависимости от `package:flutter`, `package:geolocator` и JSON-сериализации).
+              - Выделены чистые иммутабельные сущности (`domain/entities/`), атомарные Use Cases (`domain/usecases/`), модели данных (`data/models/SavedMarkerModel`) и локальные датасорсы (`data/datasources/`).
+              - Визуальные маппинги (`IconData`, `Color`) вынесены в Presentation-расширения (`presentation/extensions/`).
+              - Все контроллеры и виджеты переведены на взаимодействие строго через Use Cases и функциональный `Result<T>` без `try/catch` в UI-слое.
+            - **Full Clean Architecture Refactoring (EN)**:
+              - Strict **Domain Layer** isolation (pure Dart with zero `package:flutter`, `package:geolocator`, or JSON serialization dependencies).
+              - Extracted pure immutable entities (`domain/entities/`), atomic Use Cases (`domain/usecases/`), data models (`data/models/SavedMarkerModel`), and local data sources (`data/datasources/`).
+              - Moved UI-specific mappings (`IconData`, `Color`) into Presentation extensions (`presentation/extensions/`).
+              - Connected Riverpod controllers and widgets strictly through Use Cases and functional `Result<T>` error handling.
 
             ---
 

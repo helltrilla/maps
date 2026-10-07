@@ -59,15 +59,16 @@ void main() {
   });
 
   group('SavedMarker serialization tests', () {
-    test('serializes and deserializes correctly', () {
-      final marker = SavedMarker(
+    test('serializes and deserializes correctly via SavedMarkerModel', () {
+      const marker = SavedMarker(
         id: 'test_1',
         title: 'Тестовая точка',
-        position: const LatLng(54.71, 20.51),
+        position: LatLng(54.71, 20.51),
       );
 
-      final json = marker.toJson();
-      final fromJson = SavedMarker.fromJson(json);
+      final model = SavedMarkerModel.fromEntity(marker);
+      final json = model.toJson();
+      final fromJson = SavedMarkerModel.fromJson(json);
 
       expect(fromJson.id, equals('test_1'));
       expect(fromJson.title, equals('Тестовая точка'));
@@ -124,10 +125,10 @@ void main() {
     });
 
     test('creates enriched place from SavedMarker', () {
-      final marker = SavedMarker(
+      const marker = SavedMarker(
         id: 'mark_1',
         title: 'Моя точка',
-        position: const LatLng(54.71, 20.51),
+        position: LatLng(54.71, 20.51),
       );
       final place = PlaceDetailsService.fromMarker(marker);
 
