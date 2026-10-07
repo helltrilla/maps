@@ -29,19 +29,23 @@ A production-grade mobile mapping and navigation application built with Flutter,
   - Smooth zooming up to level 22 without 404 tile errors or grey gaps using `maxNativeZoom` upscaling.
 - **Proximity-Aware Geocoding & Address Search**:
   - Photon geocoding queries prioritized by user coordinates with automatic fallback to Nominatim.
+  - **Strict city-area filtering**: Primary search results strictly present places in the city area up to 50 km (`<= 50km`).
+  - **Inter-regional results on demand**: Distant matches (> 50 km) are neatly organized behind a dedicated *"Show other results"* action with real-time distance indicators (`+N further than 50 km`), requesting up to 25 broader results with coordinate deduplication.
+  - Helpful empty-state guidance when matches exist only in distant regions.
   - Request debouncing and cancellation tokens to prevent asynchronous race conditions.
   - Quick category shortcuts (Cafes, Restaurants, Pharmacies, Shops, Fuel).
 - **Turn-by-Turn Route Calculation (A to B)**:
   - OSRM automotive routing with detailed geometry, travel distance, and estimated duration.
   - Flexible route waypoints: GPS location, searched POIs, saved bookmarks, or interactive map coordinate picker.
   - Instant one-tap route direction reversal.
-- **Multi-Source Map Layers & Offline Caching**:
+- **Multi-Source Map Layers & Overflow-Proof Adaptive Sheets**:
   - 5 pre-configured base layers: OpenStreetMap Standard, Esri World Imagery, CyclOSM, OpenTopoMap, and CartoDB Dark.
+  - Scroll-controlled modal layer switcher and adaptive sheets guaranteed against `RenderFlex` overflows across all device widths.
   - Disk-backed tile caching powered by `flutter_map_cache` and `dio_cache_interceptor`.
   - Prominent interactive attribution widget for tile license compliance.
 - **Infrastructure Exploration via Overpass API**:
   - Dynamic POI loading by bounding box with multi-mirror automatic failover on 504 timeouts.
-  - Place detail sheets displaying addresses, phone numbers, opening hours, and modular demonstration review fixtures.
+  - Place detail sheets displaying addresses, phone numbers, opening hours, real photos, and modular demonstration review fixtures.
 
 ---
 
@@ -191,7 +195,7 @@ flutter run \
 
 ## Testing & Quality Assurance
 
-The codebase includes an extensive suite of automated tests verifying business logic, error boundaries, failover mechanisms, and user interactions:
+The codebase includes an extensive suite of **34 automated tests** verifying business logic, error boundaries, failover mechanisms, and user interactions:
 
 - **Data Source Unit Tests (`test/features/`)**:
   - HTTP mock testing via `package:http/testing.dart` (`MockClient`).
@@ -201,9 +205,10 @@ The codebase includes an extensive suite of automated tests verifying business l
   - Legacy SharedPreferences data migration verification.
 - **Widget Tests (`test/widgets/`)**:
   - `MapAttributionWidget`: Modal license view and link behavior.
-  - `FloatingSearchBar`: Category interactions, query execution, and layout safety.
-  - `PlaceDetailsSheet`: Detail presentation, demo indicators, and route callbacks.
+  - `FloatingSearchBar`: Category interactions, query execution, layout safety, strict `<= 50 km` city-area filtering, and on-demand inter-regional results expansion.
+  - `PlaceDetailsSheet`: Detail presentation, demo indicators, and route callbacks without layout overflows.
   - `RoutePlannerSheet`: Waypoint swap, custom point selection, and validation.
+  - `MainScreen`: Initial frame mounting and integration smoke test.
 - **Continuous Integration**:
   - GitHub Actions workflow (`.github/workflows/ci.yml`) runs on every commit and pull request.
 
