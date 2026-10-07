@@ -5,6 +5,7 @@ import 'package:http/testing.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maps/core/errors/result.dart';
 import 'package:maps/features/search/data/datasources/photon_datasource.dart';
+import 'package:maps/features/search/domain/models/reverse_geocode_result.dart';
 import 'package:maps/features/search/domain/models/search_result.dart';
 
 void main() {
@@ -116,6 +117,99 @@ void main() {
       final result = await dataSource.search('Ошибка', proximity: proximity);
 
       expect(result.isError, isTrue);
+    });
+
+    test('reverseGeocode parses street and full address from Photon', () async {
+      final mockData = {
+        'features': [
+          {
+            'geometry': {
+              'coordinates': [20.4522, 54.7104],
+            },
+            'properties': {
+              'street': 'Харьковская улица',
+              'housenumber': '35',
+              'city': 'Калининград',
+            },
+          },
+        ],
+      };
+
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode(mockData),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final dataSource = PhotonDataSourceImpl(client: client);
+      final result =
+          await dataSource.reverseGeocode(const LatLng(54.7104, 20.4522));
+
+      expect(result.isSuccess, isTrue);
+      final geocode = (result as Success<ReverseGeocodeResult>).data;
+      expect(geocode.street, equals('Харьковская улица, 35'));
+      expect(
+          geocode.fullAddress, contains('Харьковская улица, 35, Калининград'));
+    });
+
+    test('reverseGeocode fallbacks to Nominatim when Photon fails', () async {
+      final nominatimData = {
+        'display_name': 'Ленинский проспект, 10, Калининград',
+        'address': {
+          'road': 'Ленинский проспект',
+          'house_number': '10',
+          'city': 'Калининград',
+        },
+      };
+
+      final client = MockClient((request) async {
+        if (request.url.toString().contains('photon')) {
+          return http.Response('Error', 500);
+        }
+        return http.Response(
+          jsonEncode(nominatimData),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final dataSource = PhotonDataSourceImpl(
+        client: client,
+        photonBaseUrl: 'https://photon.test/api',
+        nominatimBaseUrl: 'https://nominatim.test',
+      );
+
+      final result =
+          await dataSource.reverseGeocode(const LatLng(54.7104, 20.4522));
+
+      expect(result.isSuccess, isTrue);
+      final geocode = (result as Success<ReverseGeocodeResult>).data;
+      expect(geocode.street, equals('Ленинский проспект, 10'));
+      expect(
+          geocode.fullAddress, contains('Ленинский проспект, 10, Калининград'));
+    });
+
+    test('reverseGeocode returns fallback when both fail without error',
+        () async {
+      final client = MockClient((request) async {
+        return http.Response('Server Error', 500);
+      });
+
+      final dataSource = PhotonDataSourceImpl(
+        client: client,
+        photonBaseUrl: 'https://photon.test/api',
+        nominatimBaseUrl: 'https://nominatim.test',
+      );
+
+      final result =
+          await dataSource.reverseGeocode(const LatLng(54.7104, 20.4522));
+
+      expect(result.isSuccess, isTrue);
+      final geocode = (result as Success<ReverseGeocodeResult>).data;
+      expect(geocode.street, equals('Точка на карте'));
+      expect(geocode.fullAddress, contains('54.71040'));
     });
   });
 }

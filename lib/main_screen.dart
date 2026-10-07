@@ -19,6 +19,7 @@ import 'features/map/presentation/widgets/map_layers_view.dart';
 import 'features/map/presentation/widgets/point_picker_overlay.dart';
 import 'features/markers/domain/models/saved_marker.dart';
 import 'features/markers/presentation/controllers/markers_controller.dart';
+import 'features/markers/presentation/widgets/add_marker_sheet.dart';
 import 'features/places/domain/models/place.dart';
 import 'features/places/presentation/controllers/places_controller.dart';
 import 'features/places/presentation/widgets/bottom_panel.dart';
@@ -134,22 +135,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       return;
     }
 
-    final newMarker = SavedMarker(
-      id: UniqueKey().toString(),
-      title:
-          'Метка (${position.latitude.toStringAsFixed(3)}, ${position.longitude.toStringAsFixed(3)})',
-      position: position,
-    );
-    await ref.read(markersControllerProvider.notifier).addMarker(newMarker);
+    _showAddMarkerSheet(position);
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${AppStrings.pointAdded}: ${newMarker.title}'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+  void _showAddMarkerSheet(LatLng position) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => AddMarkerSheet(
+        position: position,
+        onSave: (marker) async {
+          await ref.read(markersControllerProvider.notifier).addMarker(marker);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${AppStrings.pointAdded}: ${marker.title}'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 
   void _showLayerSwitcher() {
@@ -173,10 +181,49 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       name: marker.title,
       position: marker.position,
       type: 'точка',
-      address:
+      address: marker.address ??
           '${marker.position.latitude.toStringAsFixed(5)}, ${marker.position.longitude.toStringAsFixed(5)}',
     );
-    _openPlaceDetails(place);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => PlaceDetailsSheet(
+        place: place,
+        onBuildRoute: () {
+          Navigator.of(ctx).pop();
+          _openRoutePlannerSheet(preselectedDestination: place);
+        },
+        onDelete: () async {
+          Navigator.of(ctx).pop();
+          await ref
+              .read(markersControllerProvider.notifier)
+              .deleteMarker(marker.id);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Метка удалена'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+        onRename: (newName) async {
+          final updated = marker.copyWith(title: newName);
+          await ref
+              .read(markersControllerProvider.notifier)
+              .updateMarker(updated);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Метка переименована: $newName'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 
   void _openPlaceDetails(Place place) {

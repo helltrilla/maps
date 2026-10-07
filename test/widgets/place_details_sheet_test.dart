@@ -109,10 +109,57 @@ void main() {
         findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.drag(
+        find.text('Очень длинное название заведения или кофейни с пекарней'),
+        const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
     await tester.pumpAndSettle();
 
     expect(find.text('Отзывы пользователей (Демо)'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'PlaceDetailsSheet supports renaming and shows coordinates in additional info',
+      (tester) async {
+    String? updatedName;
+
+    const testPlace = Place(
+      id: 'marker_test',
+      name: 'Улица Мира',
+      position: LatLng(54.7104, 20.4522),
+      type: 'точка',
+      address: 'Улица Мира, 5, Калининград',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlaceDetailsSheet(
+            place: testPlace,
+            onBuildRoute: () {},
+            onRename: (newName) => updatedName = newName,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Улица Мира'), findsOneWidget);
+    expect(find.text('Улица Мира, 5, Калининград'), findsOneWidget);
+    expect(find.text('Координаты (дополнительная информация)'), findsOneWidget);
+
+    // Tap rename button
+    await tester.tap(find.byTooltip('Переименовать'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Переименовать точку'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Мой дом');
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+
+    expect(updatedName, equals('Мой дом'));
+    expect(find.text('Мой дом'), findsOneWidget);
   });
 }

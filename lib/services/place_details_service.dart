@@ -15,7 +15,7 @@ class PlaceDetailsService {
       name: marker.title,
       position: marker.position,
       type: 'точка',
-      address:
+      address: marker.address ??
           '${marker.position.latitude.toStringAsFixed(5)}, ${marker.position.longitude.toStringAsFixed(5)}',
     );
     return enrichPlace(rawPlace);

@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/result.dart';
 import '../../../../core/network/http_client_provider.dart';
+import '../../domain/models/reverse_geocode_result.dart';
 import '../../domain/models/search_result.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../datasources/photon_datasource.dart';
@@ -29,5 +30,10 @@ class SearchRepositoryImpl implements SearchRepository {
       proximity: proximity ?? AppConstants.defaultLocation,
       limit: limit,
     );
+  }
+
+  @override
+  Future<Result<ReverseGeocodeResult>> reverseGeocode(LatLng position) {
+    return _dataSource.reverseGeocode(position);
   }
 }

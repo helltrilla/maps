@@ -5,6 +5,7 @@ import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../domain/models/reverse_geocode_result.dart';
 import '../../domain/models/search_result.dart';
 
 abstract class SearchDataSource {
@@ -13,6 +14,8 @@ abstract class SearchDataSource {
     required LatLng proximity,
     int limit = 10,
   });
+
+  Future<Result<ReverseGeocodeResult>> reverseGeocode(LatLng position);
 }
 
 class PhotonDataSourceImpl implements SearchDataSource {
@@ -185,5 +188,148 @@ class PhotonDataSourceImpl implements SearchDataSource {
     } catch (e) {
       return Error(NetworkFailure('Ошибка геопоиска Nominatim: $e'));
     }
+  }
+
+  @override
+  Future<Result<ReverseGeocodeResult>> reverseGeocode(LatLng position) async {
+    final urlStr =
+        '$_photonBaseUrl/reverse?lat=${position.latitude}&lon=${position.longitude}';
+
+    try {
+      final response = await _client.get(
+        Uri.parse(urlStr),
+        headers: {'User-Agent': AppConfig.appUserAgent},
+      ).timeout(AppConstants.networkTimeout);
+
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final features = data['features'] as List<dynamic>? ?? [];
+
+        if (features.isNotEmpty) {
+          final properties =
+              features[0]['properties'] as Map<String, dynamic>? ?? {};
+          final name = properties['name'] as String?;
+          final street = properties['street'] as String?;
+          final housenumber = properties['housenumber'] as String?;
+          final city = properties['city'] as String? ??
+              properties['town'] as String? ??
+              properties['village'] as String? ??
+              properties['locality'] as String?;
+          final state = properties['state'] as String?;
+
+          String streetPart;
+          if (street != null && street.trim().isNotEmpty) {
+            streetPart = housenumber != null && housenumber.trim().isNotEmpty
+                ? '${street.trim()}, ${housenumber.trim()}'
+                : street.trim();
+          } else if (name != null && name.trim().isNotEmpty) {
+            streetPart = name.trim();
+          } else if (city != null && city.trim().isNotEmpty) {
+            streetPart = city.trim();
+          } else {
+            streetPart = 'Точка на карте';
+          }
+
+          final addressParts = <String>[];
+          if (streetPart != 'Точка на карте') {
+            addressParts.add(streetPart);
+          }
+          if (city != null &&
+              city.trim().isNotEmpty &&
+              !addressParts.contains(city.trim())) {
+            addressParts.add(city.trim());
+          }
+          if (state != null &&
+              state.trim().isNotEmpty &&
+              !addressParts.contains(state.trim())) {
+            addressParts.add(state.trim());
+          }
+
+          final fullAddress = addressParts.isNotEmpty
+              ? addressParts.join(', ')
+              : 'Координаты: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+
+          return Success(
+            ReverseGeocodeResult(
+              street: streetPart,
+              fullAddress: fullAddress,
+              position: position,
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      // Фолбэк на Nominatim
+    }
+
+    return _reverseGeocodeNominatim(position);
+  }
+
+  Future<Result<ReverseGeocodeResult>> _reverseGeocodeNominatim(
+      LatLng position) async {
+    try {
+      final url = Uri.parse(
+        '$_nominatimBaseUrl/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json&accept-language=ru',
+      );
+      final response = await _client.get(url, headers: {
+        'User-Agent': AppConfig.appUserAgent,
+      }).timeout(AppConstants.networkTimeout);
+
+      if (response.statusCode == 200) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final address = data['address'] as Map<String, dynamic>? ?? {};
+
+        final road = address['road'] as String? ??
+            address['pedestrian'] as String? ??
+            address['street'] as String? ??
+            address['footway'] as String? ??
+            address['cycleway'] as String? ??
+            address['path'] as String?;
+        final houseNumber = address['house_number'] as String?;
+        final name = data['name'] as String?;
+        final city = address['city'] as String? ??
+            address['town'] as String? ??
+            address['village'] as String? ??
+            address['suburb'] as String?;
+
+        String streetPart;
+        if (road != null && road.trim().isNotEmpty) {
+          streetPart = houseNumber != null && houseNumber.trim().isNotEmpty
+              ? '${road.trim()}, ${houseNumber.trim()}'
+              : road.trim();
+        } else if (name != null && name.trim().isNotEmpty) {
+          streetPart = name.trim();
+        } else if (city != null && city.trim().isNotEmpty) {
+          streetPart = city.trim();
+        } else {
+          streetPart = 'Точка на карте';
+        }
+
+        final displayName = data['display_name'] as String?;
+        final fullAddress = displayName ??
+            (streetPart != 'Точка на карте'
+                ? (city != null ? '$streetPart, $city' : streetPart)
+                : 'Координаты: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}');
+
+        return Success(
+          ReverseGeocodeResult(
+            street: streetPart,
+            fullAddress: fullAddress,
+            position: position,
+          ),
+        );
+      }
+    } catch (_) {}
+
+    return Success(
+      ReverseGeocodeResult(
+        street: 'Точка на карте',
+        fullAddress:
+            'Координаты: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}',
+        position: position,
+      ),
+    );
   }
 }

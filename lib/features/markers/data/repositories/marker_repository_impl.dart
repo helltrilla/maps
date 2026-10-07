@@ -80,6 +80,19 @@ class MarkerRepositoryImpl implements MarkerRepository {
   }
 
   @override
+  Future<Result<void>> updateMarker(SavedMarker marker) async {
+    final current = await loadMarkers();
+    return current.when(
+      success: (list) async {
+        final updated =
+            list.map((m) => m.id == marker.id ? marker : m).toList();
+        return saveMarkers(updated);
+      },
+      error: (f) => Error(f),
+    );
+  }
+
+  @override
   Future<Result<void>> deleteMarker(String id) async {
     final current = await loadMarkers();
     return current.when(

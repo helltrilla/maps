@@ -7,6 +7,7 @@ import 'package:maps/features/places/domain/models/place.dart';
 import 'package:maps/features/search/domain/models/search_result.dart';
 import 'package:maps/features/search/domain/repositories/search_repository.dart';
 import 'package:maps/features/search/presentation/widgets/search_bar_widget.dart';
+import 'package:maps/features/search/domain/models/reverse_geocode_result.dart';
 import 'package:maps/services/search_service.dart';
 
 class FakeSearchRepository implements SearchRepository {
@@ -25,6 +26,17 @@ class FakeSearchRepository implements SearchRepository {
       return onSearch!(query, limit);
     }
     return const Success([]);
+  }
+
+  @override
+  Future<Result<ReverseGeocodeResult>> reverseGeocode(LatLng position) async {
+    return Success(
+      ReverseGeocodeResult(
+        street: 'ул. Тестовая',
+        fullAddress: 'ул. Тестовая, 10, Калининград',
+        position: position,
+      ),
+    );
   }
 }
 
