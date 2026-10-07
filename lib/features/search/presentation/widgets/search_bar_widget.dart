@@ -306,9 +306,12 @@ class FloatingSearchBarState extends State<FloatingSearchBar> {
                           ),
                         ],
                       ),
-                      child: _controller.text.trim().isEmpty
-                          ? _buildNearbySuggestions()
-                          : _buildSearchResults(),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: _controller.text.trim().isEmpty
+                            ? _buildNearbySuggestions()
+                            : _buildSearchResults(),
+                      ),
                     ),
                   ),
                 ),
